@@ -4,10 +4,42 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>antinoise</title>
+    <title>Antinoise — quiet zones for road traffic</title>
   </head>
   <body>
-    <div id="app"></div>
+    <main id="app">
+      <header>
+        <h1>Antinoise</h1>
+        <p class="tagline">
+          Simulated feedforward noise-cancellation for road rumble — sensors relay noise
+          analysis through optical fiber so the field can cancel the sound <em>before it arrives</em>.
+        </p>
+        <p class="honesty">Simulation · low-frequency target (&lt; ~500 Hz) · lead time = tower distance ÷ 343 m/s</p>
+      </header>
+
+      <section id="listen" class="card">
+        <h2>Listen to your quiet zone</h2>
+        <p class="hint">Headphones recommended. Tap a scenario, then toggle what the zone hears.</p>
+        <div id="scenarios" class="row"></div>
+        <div id="transport" class="row" hidden>
+          <button id="btn-noise" class="primary">Traffic noise (no field)</button>
+          <button id="btn-quiet" class="primary">With Antinoise field</button>
+          <button id="btn-stop">Stop</button>
+        </div>
+        <div id="readout" class="readout" hidden>
+          <div class="stat"><span class="k">Zone reduction</span><span class="v" id="v-db">–</span></div>
+          <div class="stat"><span class="k">Fiber lead</span><span class="v" id="v-lead">–</span></div>
+          <div class="stat"><span class="k">Geometry</span><span class="v" id="v-geo">–</span></div>
+        </div>
+      </section>
+
+      <canvas id="field" hidden></canvas>
+      <div id="agent-console" hidden></div>
+
+      <footer>
+        <span>Antinoise · Meta Global AI Developer Hackathon 2026 · building period Oct 27 – Nov 4</span>
+      </footer>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
