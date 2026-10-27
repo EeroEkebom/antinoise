@@ -10,6 +10,7 @@ type Audio = { ctx: AudioContext; gainOpen: GainNode; gainClosed: GainNode };
 let audio: Audio | null = null;
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1 };
 let seed = SEEDS[0];
+let freqHz = 100;
 let result: ScenarioResult | null = null;
 let dragging: Marker | null = null;
 
@@ -78,7 +79,7 @@ async function rebuildAudio(cfg: ScenarioConfig): Promise<void> {
 function draw(highlight: Marker | null = null): void {
   const canvas = el<HTMLCanvasElement>('field');
   if (!canvas) return;
-  renderField(canvas, geo, { highlight });
+  renderField(canvas, geo, { highlight, freqHz });
 }
 
 async function initAudio(): Promise<void> {
@@ -144,6 +145,19 @@ for (const [label, lv] of [['Light', 0.6], ['Normal', 1], ['Heavy', 1.4]] as [st
   });
   el('traffic').appendChild(b);
   void label;
+}
+
+// wave-frequency selector: watch the quiet band shrink as the wavelength shortens — the physical honesty knob
+for (const f of [63, 100, 250, 630]) {
+  const b = document.createElement('button');
+  b.textContent = `${f} Hz`;
+  if (f === freqHz) b.classList.add('active');
+  b.addEventListener('click', () => {
+    freqHz = f;
+    for (const c of el('waves').children) c.classList.toggle('active', c === b);
+    draw();
+  });
+  el('waves').appendChild(b);
 }
 
 // drag interaction on the field
