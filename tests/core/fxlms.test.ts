@@ -56,6 +56,54 @@ describe('createFxLms', () => {
       expect(Number.isFinite(out)).toBe(true);
     }
   });
+
+  test('non-finite reference sample cannot poison the weights', () => {
+    const ctl = createFxLms({ taps: 64, mu: 0.05, secondaryPath: delayLine(20, 0.9) });
+    const refBuf: number[] = [];
+    const plantBuf: number[] = [];
+    const early: number[] = [];
+    const late: number[] = [];
+    for (let n = 0; n < 16000; n++) {
+      const ref = n === 5 ? NaN : Math.sin((2 * Math.PI * 100 * n) / sr);
+      refBuf[n] = ref;
+      const out = ctl.process(ref);
+      expect(Number.isFinite(out)).toBe(true);
+      plantBuf[n] = out;
+      const ambient = n >= 20 ? 0.5 * refBuf[n - 20] : 0; // NaN passes through ref history like the plant would
+      const residual = ambient - (n - 20 >= 0 ? plantBuf[n - 20] * 0.9 : 0);
+      if (n > 100 && n < 1200) early.push(Number.isFinite(residual) ? residual : 0);
+      if (n >= 14000) late.push(residual);
+      ctl.adapt(Number.isFinite(residual) ? residual : 0, out);
+    }
+    // the controller recovers: late residual well below the early transient
+    expect(rms(late)).toBeLessThanOrEqual(0.5 * rms(early));
+  });
+
+  test('wrong secondary-path estimate (5× low) does not amplify the zone', () => {
+    const ctl = createFxLms({ taps: 64, mu: 0.05, secondaryPath: delayLine(20, 0.18) }); // ŝ = 0.18 vs plant 0.9
+    const refBuf: number[] = [];
+    const plantBuf: number[] = [];
+    const recent: number[] = [];
+    let openSq = 0;
+    let openN = 0;
+    for (let n = 0; n < 16000; n++) {
+      const ref = Math.sin((2 * Math.PI * 100 * n) / sr);
+      refBuf[n] = ref;
+      const out = ctl.process(ref);
+      expect(Number.isFinite(out)).toBe(true);
+      plantBuf[n] = out;
+      const ambient = n >= 20 ? 0.5 * refBuf[n - 20] : 0;
+      const residual = ambient - (n - 20 >= 0 ? plantBuf[n - 20] * 0.9 : 0);
+      if (n >= 8000) {
+        recent.push(residual);
+        openSq += ambient * ambient;
+        openN++;
+      }
+      ctl.adapt(residual, out);
+    }
+    const openRms = Math.sqrt(openSq / openN);
+    expect(rms(recent)).toBeLessThanOrEqual(1.5 * openRms); // never meaningfully louder than open loop
+  });
 });
 
 function delayLine(taps: number, gain: number): number[] {

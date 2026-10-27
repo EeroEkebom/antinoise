@@ -73,6 +73,18 @@ export function runScenario(cfg: ScenarioConfig): ScenarioResult {
   const tower0 = Math.round((cfg.towerSeparationMeters / c) * sr);
   const standoff0 = Math.round((standoff / c) * sr);
   const preDelay = modelFiberLead ? Math.max(0, ambient0 - tower0 - standoff0) : 0;
+  // physical feasibility — silent 0-dB failure modes are errors, not degraded modes (review finding 3)
+  if (standoff0 < 1) {
+    throw new Error(`array standoff too small: ${standoff} m rounds to ${standoff0} delay samples at ${sr} Hz`);
+  }
+  const alignment = ambient0 - tower0 - standoff0;
+  if (modelFiberLead && alignment < 0) {
+    const minTowerMeters = ((ambient0 - standoff0) / sr) * c;
+    throw new Error(
+      `infeasible lead: tower separation ${cfg.towerSeparationMeters} m gives ${tower0} samples of reference ` +
+        `but alignment needs ${ambient0 - standoff0}; raise tower separation to ≥ ${minTowerMeters.toFixed(1)} m`,
+    );
+  }
   const preDelayBuf = new Float32Array(preDelay);
   let preDelayIdx = 0;
   const withPreDelay = (refSample: number): number => {

@@ -35,5 +35,16 @@ describe('runScenario (two-tower, fiber-relayed)', () => {
     const withLead = runScenario(base);
     const withoutLead = runScenario({ ...base, modelFiberLead: false });
     expect(withLead.reductionDb).toBeGreaterThan(withoutLead.reductionDb);
+    // magnitude pins: the "much worse without" headline must hold, not just strict inequality
+    expect(withoutLead.reductionDb).toBeLessThan(6);
+    expect(withLead.reductionDb - withoutLead.reductionDb).toBeGreaterThan(8);
+  });
+
+  test('throws when standoff is too small for a physical secondary path', () => {
+    expect(() => runScenario({ ...base, arrayStandoffMeters: 0.01 })).toThrow();
+  });
+
+  test('throws when the tower reference lead cannot cover the alignment', () => {
+    expect(() => runScenario({ ...base, towerSeparationMeters: 26 })).toThrow(/lead|align/i);
   });
 });
