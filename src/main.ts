@@ -5,9 +5,9 @@ import { prepareAudioBuffers } from './audio/bridge.js';
 import type { ScenarioConfig } from './core/scenario.js';
 
 const SCENARIOS: { name: string; cfg: ScenarioConfig }[] = [
-  { name: 'Traffic A — morning', cfg: { seed: 42, towerSeparationMeters: 20, zoneSeparationMeters: 30, sampleCount: 160000, mu: 0.05 } },
-  { name: 'Traffic B — heavy', cfg: { seed: 7, towerSeparationMeters: 20, zoneSeparationMeters: 30, sampleCount: 160000, mu: 0.05 } },
-  { name: 'Traffic C — near zone', cfg: { seed: 99, towerSeparationMeters: 20, zoneSeparationMeters: 30, sampleCount: 160000, mu: 0.05 } },
+  { name: 'Traffic mix A', cfg: { seed: 42, towerSeparationMeters: 20, zoneSeparationMeters: 30, sampleCount: 160000, mu: 0.05 } },
+  { name: 'Traffic mix B', cfg: { seed: 7, towerSeparationMeters: 20, zoneSeparationMeters: 30, sampleCount: 160000, mu: 0.05 } },
+  { name: 'Traffic mix C', cfg: { seed: 99, towerSeparationMeters: 20, zoneSeparationMeters: 30, sampleCount: 160000, mu: 0.05 } },
 ];
 
 type Audio = { ctx: AudioContext; open: AudioBuffer; closed: AudioBuffer; gainOpen: GainNode; gainClosed: GainNode };
@@ -78,6 +78,8 @@ for (const s of SCENARIOS) {
   const b = document.createElement('button');
   b.textContent = s.name;
   b.addEventListener('click', () => {
+    for (const c of el('scenarios').children) c.classList.remove('active');
+    b.classList.add('active');
     if (audio) audio.ctx.close();
     void initAudio(s.cfg).then(() => toggle('closed'));
   });
