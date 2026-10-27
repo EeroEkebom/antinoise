@@ -34,7 +34,7 @@ describe('prepareAudioBuffers', () => {
     const src = sine(100, 16000, 2);
     const r = prepareAudioBuffers({ open: src, closed: new Float32Array(4) }, 16000);
     expect(r.open.length).toBe(src.length);
-    for (let i = 0; i < src.length; i++) expect(r.open[i]).toBeCloseTo(Math.tanh(src[i]), 9);
+    for (let i = 0; i < src.length; i++) expect(r.open[i]).toBeCloseTo(src[i], 9); // transparent below the knee
   });
 
   test('worst-case render stays within [-1, 1] after the master limiter', () => {
