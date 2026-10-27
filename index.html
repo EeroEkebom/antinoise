@@ -19,12 +19,16 @@
 
       <section id="listen" class="card">
         <h2>Listen to your quiet zone</h2>
-        <p class="hint">Headphones recommended. Pick a traffic mix (same geometry, different random traffic), then toggle what the zone hears.</p>
+        <p class="hint">Headphones recommended. Pick a traffic mix, then toggle what the zone hears. Drag the markers on the field map below.</p>
         <div id="scenarios" class="row"></div>
+        <div id="traffic" class="row">
+          <span class="knob-label">Traffic level:</span>
+        </div>
+        <p class="hint small" id="traffic-note">Note: the achieved reduction is independent of traffic level — linear feedforward cancellation is scale-invariant.</p>
+        <div id="banner" class="banner" hidden></div>
         <div id="transport" class="row" hidden>
           <button id="btn-noise" class="primary">Traffic noise (no field)</button>
           <button id="btn-quiet" class="primary">With Antinoise field</button>
-          <button id="btn-stop">Stop</button>
         </div>
         <div id="readout" class="readout" hidden>
           <div class="stat"><span class="k">Zone reduction</span><span class="v" id="v-db">–</span></div>
@@ -33,7 +37,7 @@
         </div>
       </section>
 
-      <canvas id="field" hidden></canvas>
+      <canvas id="field" class="field-canvas"></canvas>
       <div id="agent-console" hidden></div>
 
       <footer>

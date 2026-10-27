@@ -69,4 +69,27 @@ button.primary.active { background: #175a52; color: #eafffb; }
 
 #field[hidden], #agent-console[hidden] { display: none; }
 
+.field-canvas {
+  width: 100%;
+  height: 280px;
+  background: var(--surface);
+  border: 1px solid #232a3a;
+  border-radius: var(--radius);
+  touch-action: none;
+  cursor: grab;
+}
+.field-canvas.dragging { cursor: grabbing; }
+
+.banner {
+  background: rgba(224, 112, 90, 0.15);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+#listen.invalid .field-canvas { border-color: var(--danger); }
+.knob-label { color: var(--text-dim); font-size: 0.85rem; align-self: center; }
+.hint.small { font-size: 0.78rem; }
+
 footer { color: var(--text-dim); font-size: 0.8rem; }
