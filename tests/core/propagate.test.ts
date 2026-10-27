@@ -21,11 +21,11 @@ describe('propagate', () => {
   test('exactly whole-sample distance shifts impulse by exactly N samples', () => {
     const samplesDelayed = 100; // target delay in samples
     const distanceMeters = (samplesDelayed / sr) * CONFIG.SPEED_OF_SOUND; // 100/16000 * 343 ≈ 2.14 m
-    const { out, samplesDelayed: d } = propagate(impulse(2000, 200), distanceMeters, sr);
+    const { out, samplesDelayed: d, gain } = propagate(impulse(2000, 200), distanceMeters, sr);
     expect(d).toBe(samplesDelayed);
     expect(peakIndex(out)).toBeGreaterThan(298);
-    // whole-sample case: single clean shifted impulse
-    expect(out[samplesDelayed + 200]).toBeCloseTo(1, 5);
+    // whole-sample case: single clean shifted impulse, scaled by the path gain
+    expect(out[samplesDelayed + 200]).toBeCloseTo(gain, 5);
   });
 
   test('sub-sample distance splits impulse peak across two adjacent samples ±0.05', () => {
