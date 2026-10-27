@@ -38,7 +38,6 @@ function spawnVehicle(rng: Rng, startSample: number, sampleRate: number): Vehicl
 /** Seeded traffic rumble: superposition of 60–160 Hz pass-by harmonic stacks + low-passed broadband rumble. */
 export function createTrafficSource(rng: Rng, sampleRate: number): { nextSample(): number } {
   const vehicles: Vehicle[] = [];
-  let nextEventAt = 0;
   let sample = 0;
   // Pre-warm: one vehicle already mid-pass at sample 0, so any 1 s window starts with content.
   vehicles.push({ ...spawnVehicle(rng, -Math.round(sampleRate * 0.5), sampleRate) });
