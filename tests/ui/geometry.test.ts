@@ -7,7 +7,7 @@ import {
   type Geometry,
 } from '../../src/ui/geometry.js';
 
-const VALID: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1 };
+const VALID: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 
 describe('geometry mapping', () => {
   test('lead formula = (zone − tower − standoff) / 343 s', () => {
@@ -30,6 +30,7 @@ describe('geometry mapping', () => {
     expect(validateGeometry({ ...VALID, zoneMeters: 999 }).ok).toBe(false);
     expect(validateGeometry({ ...VALID, towerMeters: -1 }).ok).toBe(false);
     expect(validateGeometry({ ...VALID, standoffMeters: 0 }).ok).toBe(false);
+    expect(validateGeometry({ ...VALID, speakers: 8 }).ok).toBe(false);
   });
 
   test('geometryToScenarioConfig: exact values threaded', () => {

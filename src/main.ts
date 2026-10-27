@@ -8,7 +8,7 @@ const SEEDS = [42, 7, 99];
 
 type Audio = { ctx: AudioContext; gainOpen: GainNode; gainClosed: GainNode };
 let audio: Audio | null = null;
-const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1 };
+const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 let seed = SEEDS[0];
 let freqHz = 100;
 let result: ScenarioResult | null = null;
@@ -119,6 +119,14 @@ el('btn-quiet').addEventListener('click', () => {
   if (!audio) void initAudio().then(() => toggle('closed'));
   else toggle('closed');
 });
+el('btn-stop').addEventListener('click', () => {
+  if (audio) {
+    audio.ctx.close();
+    audio = null;
+  }
+  el('transport').hidden = true;
+  el('readout').hidden = true;
+});
 
 // traffic mix picker
 for (const s of SEEDS) {
@@ -145,6 +153,19 @@ for (const [label, lv] of [['Light', 0.6], ['Normal', 1], ['Heavy', 1.4]] as [st
   });
   el('traffic').appendChild(b);
   void label;
+}
+
+// speaker-count knob: wider honest quiet band (nodes spread along the corridor)
+for (const n of [1, 2, 3, 5]) {
+  const b = document.createElement('button');
+  b.textContent = `${n}`;
+  if (n === geo.speakers) b.classList.add('active');
+  b.addEventListener('click', () => {
+    geo.speakers = n;
+    for (const c of el('speakers').children) c.classList.toggle('active', c === b);
+    rerun();
+  });
+  el('speakers').appendChild(b);
 }
 
 // wave-frequency selector: watch the quiet band shrink as the wavelength shortens — the physical honesty knob

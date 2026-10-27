@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { CONFIG } from '../../src/core/rng.js';
 import { waveIntensity, zoneDepthDb, type Geometry } from '../../src/ui/fieldViz.js';
 
-const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1 };
+const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 const CORRIDOR_Y = 20; // world center (WORLD.heightMeters = 40)
 
 describe('waveIntensity', () => {
@@ -26,6 +26,22 @@ describe('waveIntensity', () => {
     const on = waveIntensity(geo.zoneMeters, CORRIDOR_Y, geo, CORRIDOR_Y, 315);
     const offV = waveIntensity(geo.zoneMeters, CORRIDOR_Y + off, geo, CORRIDOR_Y, 315);
     expect(Math.abs(offV.sum)).toBeGreaterThan(2 * Math.abs(on.sum));
+  });
+});
+
+describe('multi-speaker array', () => {
+  test('each array node cancels its own band node (N=3, spacing 4 m: nodes at 0, ±4 m)', () => {
+    const g3: Geometry = { ...geo, speakers: 3 };
+    for (const off of [-4, 0, 4]) {
+      const r = waveIntensity(g3.zoneMeters, CORRIDOR_Y + off, g3, CORRIDOR_Y, 100);
+      expect(Math.abs(r.sum)).toBeLessThan(0.05);
+    }
+  });
+
+  test('wider honest quiet band: depth over the wide sweep is deeper with N=3 than N=1', () => {
+    const g1: Geometry = { ...geo, speakers: 1 };
+    const g3: Geometry = { ...geo, speakers: 3 };
+    expect(zoneDepthDb(g3, CORRIDOR_Y, 100)).toBeLessThan(zoneDepthDb(g1, CORRIDOR_Y, 100));
   });
 });
 

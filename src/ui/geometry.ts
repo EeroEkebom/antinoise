@@ -4,6 +4,9 @@ import { CONFIG } from '../core/rng.js';
 /** Top-down world rectangle: road is the left edge (x = 0), everything in meters. */
 export const WORLD = { widthMeters: 60, heightMeters: 40 };
 
+/** Sensor line spacing between array nodes, meters — a fixed hardware choice (physical, frequency-independent). */
+export const SPEAKER_SPACING_M = 4;
+
 export type Geometry = {
   /** Sensor tower distance from road (m, x axis). */
   towerMeters: number;
@@ -15,6 +18,8 @@ export type Geometry = {
   y: number;
   /** Traffic level multiplier (0.5 heavy-slowed … 2 heavy traffic). */
   trafficLevel: number;
+  /** Number of array nodes spread along the corridor (wider honest quiet band). Default 1. */
+  speakers: number;
 };
 
 /** Fiber-lead advantage in ms: (zone − tower − standoff) / SPEED_OF_SOUND. */
@@ -32,6 +37,8 @@ export function validateGeometry(g: Geometry): Validated {
     return { ok: false, message: `Zone must sit between 0 and ${WORLD.widthMeters} m from the road` };
   if (g.standoffMeters < 0.5)
     return { ok: false, message: `Cancel array must keep ≥ 0.5 m from the zone` };
+  if (!Number.isInteger(g.speakers) || g.speakers < 1 || g.speakers > 5)
+    return { ok: false, message: `Array node count must be 1–5` };
   // alignment the emission scheduler needs: sound must get from tower side of array to zone before the ambient wavefront does
   const leadSamples = Math.round((g.zoneMeters / CONFIG.SPEED_OF_SOUND) * CONFIG.SIM_SAMPLE_RATE);
   const towerSamples = Math.round((g.towerMeters / CONFIG.SPEED_OF_SOUND) * CONFIG.SIM_SAMPLE_RATE);
