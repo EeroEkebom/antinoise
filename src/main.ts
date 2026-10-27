@@ -191,3 +191,4 @@ function WORLDmax(): number {
 }
 
 window.addEventListener('resize', () => draw());
+rerun(); // initial draw + readout wiring (audio stays off until first gesture)

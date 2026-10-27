@@ -36,14 +36,14 @@ export function waveIntensity(
   return { amb, anti, sum: amb + anti };
 }
 
-/** Quiet-zone "depth": residual sum swept perpendicular across ±1.5 wavelengths, in dB vs the ambient alone. */
+/** Quiet-zone "depth": residual sum swept perpendicular across ±0.75λ (the coherent band), dB vs ambient alone. */
 export function zoneDepthDb(geo: Geometry, corridorY: number, freqHz: number): number {
   const lam = CONFIG.SPEED_OF_SOUND / freqHz;
   let sAmb = 0;
   let sSum = 0;
   const n = 64;
   for (let i = 0; i < n; i++) {
-    const ym = corridorY + lam * 1.5 * ((i / (n - 1)) * 2 - 1);
+    const ym = corridorY + lam * 0.75 * ((i / (n - 1)) * 2 - 1);
     const r = waveIntensity(geo.zoneMeters, ym, geo, corridorY, freqHz);
     sAmb += r.amb * r.amb;
     sSum += r.sum * r.sum;
@@ -92,21 +92,21 @@ export function renderField(
   c2d.fillStyle = '#e6a23c';
   for (let y = 8; y < stripTop; y += 26) c2d.fillRect(Math.ceil(mx(ROADM / 3, w)), y, 2, 14);
 
-  const marker = (px: number, py: number, label: string, color: string, hl: boolean): void => {
+  const marker = (px: number, py: number, label: string, color: string, hl: boolean, above = true): void => {
     c2d.beginPath();
     c2d.arc(px, py, hl ? 11 : 8, 0, Math.PI * 2);
     c2d.fillStyle = color;
     c2d.fill();
     c2d.font = '12px sans-serif';
     c2d.fillStyle = '#d9dee8';
-    c2d.fillText(label, px + 14, py + 4);
+    c2d.fillText(label, px + 13, py + (above ? -12 : 20));
   };
   const towerX = mx(geo.towerMeters, w);
   const speakerX = mx(geo.zoneMeters - geo.standoffMeters, w);
   const zx = mx(geo.zoneMeters, w);
-  marker(towerX, corridorY, 'Sensor tower → fiber → controller', '#7f8ff4', opts.highlight === 'tower');
-  marker(speakerX, corridorY, 'Cancel array', '#4fd1c5', opts.highlight === 'speaker');
-  marker(zx, corridorY, 'Quiet zone', '#e0705a', opts.highlight === 'zone');
+  marker(towerX, corridorY, 'Sensor', '#7f8ff4', opts.highlight === 'tower', true);
+  marker(speakerX, corridorY, 'Array', '#4fd1c5', opts.highlight === 'speaker', false);
+  marker(zx, corridorY, 'Zone', '#e0705a', opts.highlight === 'zone', true);
 
   // fiber link (tower → controller at the array side): effectively instant
   c2d.strokeStyle = 'rgba(127,143,244,0.7)';
@@ -123,7 +123,7 @@ export function renderField(
   }
 
   // cross-section strip along the corridor: ambient wave, anti wave, their sum
-  c2d.fillText('cross-section at the corridor line:', 12, stripTop + 14);
+  c2d.fillText('cross-section at the corridor line:', 12, stripTop - 8);
   const y0 = stripTop + stripH / 2;
   const plot = (getV: (x: number) => number, color: string, lw: number, phaseY = 0): void => {
     c2d.beginPath();
