@@ -3,6 +3,10 @@ import { runScenario, type ScenarioConfig, type ScenarioResult } from './core/sc
 import { prepareAudioBuffers } from './audio/bridge.js';
 import { validateGeometry, geometryToScenarioConfig, leadMs, type Geometry } from './ui/geometry.js';
 import { renderField, hitTest, pxToMeters, type Marker } from './ui/fieldViz.js';
+import { createAgentConsole } from './ui/agentConsole.js';
+
+const agentConsole = createAgentConsole(el('agent-console'));
+agentConsole.setStatus('idle — connects to a Muse model in Phase 3', false);
 
 const SEEDS = [42, 7, 99];
 

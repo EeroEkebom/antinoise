@@ -96,4 +96,40 @@ button.primary.active { background: #175a52; color: #eafffb; }
 .legend-item { color: var(--text-dim); font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
+.agent-console {
+  background: var(--surface);
+  border: 1px solid #232a3a;
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.console-head { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.dot-idle { background: #526079; }
+.dot-live { background: var(--accent); box-shadow: 0 0 6px var(--accent-dim); }
+.status-text { color: var(--text-dim); font-size: 0.82rem; margin-left: auto; }
+.trail { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; max-height: 180px; overflow-y: auto; }
+.trail-row { display: flex; gap: 8px; color: var(--text-dim); }
+.trail-row .s { color: var(--text); min-width: 30%; }
+.trail-row .d { color: #7f8ff4; }
+.trail-row .a { color: var(--accent); }
+
+.flow { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
+.flow-node {
+  background: var(--surface-2);
+  border: 1px solid #2c3547;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 70px;
+}
+.flow-node small { color: var(--text-dim); font-size: 0.7rem; }
+.flow-node.accent { border-color: var(--accent-dim); color: #bfeee9; }
+.flow-arrow { align-self: center; color: var(--text-dim); }
+
 footer { color: var(--text-dim); font-size: 0.8rem; }

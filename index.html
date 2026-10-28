@@ -51,7 +51,26 @@
         <span class="legend-item"><span class="dot" style="background:#e0705a"></span> Quiet zone (drags: distance from road)</span>
         <span class="legend-item"><span class="dot" style="background:#e6a23c"></span> Road = noise source</span>
       </div>
-      <div id="agent-console" hidden></div>
+      <div id="agent-console"></div>
+
+      <section id="how" class="card">
+        <h2>How it's constructed</h2>
+        <div class="flow">
+          <span class="flow-node">Traffic</span><span class="flow-arrow"></span>
+          <span class="flow-node">Sensor tower<small>hears the rumble first</small></span><span class="flow-arrow"></span>
+          <span class="flow-node accent">Optical fiber<small>analysis is faster than sound — the whole idea</small></span><span class="flow-arrow"></span>
+          <span class="flow-node">Controller<small>FXLMS filter + emission scheduler</small></span><span class="flow-arrow"></span>
+          <span class="flow-node">Cancel array<small>anti-noise timed to meet the wavefront</small></span><span class="flow-arrow"></span>
+          <span class="flow-node">Quiet zone<small>λ-capped, honest</small></span>
+        </div>
+        <p class="hint">
+          The controller must emit the anti-noise (traveling <em>d</em><sub>array→zone</sub>) so it meets the
+          ambient wavefront (traveling <em>d</em><sub>road→zone</sub>) exactly — the head start between tower
+          reference and zone arrival is the lead the fiber buys: <em>lead = (d<sub>zone</sub> − d<sub>tower</sub> − d<sub>standoff</sub>) / 343 m/s</em>.
+          Deep rumble (long wavelength) cancels across a region; short waves only in a narrow spot — that's
+          why this field honest-scopes to low frequencies, while headphones (your eardrum) can go much higher.
+        </p>
+      </section>
 
       <footer>
         <span>Antinoise · Meta Global AI Developer Hackathon 2026 · building period Oct 27 – Nov 4</span>
