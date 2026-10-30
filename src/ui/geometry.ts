@@ -5,8 +5,10 @@ import { CONFIG } from '../core/rng.js';
 export const WORLD = { widthMeters: 60, heightMeters: 40 };
 export const WORLD_HEIGHT_M = WORLD.heightMeters;
 
-/** Sensor line spacing between array nodes, meters — a fixed hardware choice (physical, frequency-independent). */
+/** Sensor line spacing between array nodes, meters — hardware knob (draggable feel via the spacing control). */
 export const SPEAKER_SPACING_M = 4;
+export const spacingOf = (g: { spacingMeters?: number }): number =>
+  g.spacingMeters != null && Number.isFinite(g.spacingMeters) ? g.spacingMeters : SPEAKER_SPACING_M;
 
 export type Geometry = {
   /** Sensor tower distance from road (m, x axis). */
@@ -21,6 +23,8 @@ export type Geometry = {
   trafficLevel: number;
   /** Number of array nodes spread along the corridor (wider honest quiet band). Default 1. */
   speakers: number;
+  /** Corridor spacing between array nodes, meters (1–8). Default 4. */
+  spacingMeters?: number;
 };
 
 /** Fiber-lead advantage in ms: (zone − tower − standoff) / SPEED_OF_SOUND. */
@@ -40,6 +44,8 @@ export function validateGeometry(g: Geometry): Validated {
     return { ok: false, message: `Cancel array must keep ≥ 0.5 m from the zone` };
   if (!Number.isInteger(g.speakers) || g.speakers < 1 || g.speakers > 5)
     return { ok: false, message: `Array node count must be 1–5` };
+  if (g.spacingMeters !== undefined && (g.spacingMeters < 1 || g.spacingMeters > 8))
+    return { ok: false, message: `Node spacing must be 1–8 m` };
   // alignment the emission scheduler needs: sound must get from tower side of array to zone before the ambient wavefront does
   const leadSamples = Math.round((g.zoneMeters / CONFIG.SPEED_OF_SOUND) * CONFIG.SIM_SAMPLE_RATE);
   const towerSamples = Math.round((g.towerMeters / CONFIG.SPEED_OF_SOUND) * CONFIG.SIM_SAMPLE_RATE);

@@ -10,9 +10,10 @@ describe('createAgentConsole', () => {
     con.log({ state: 'idle', decision: 'standby', applied: 'none' });
     const rows = Array.from(host.querySelectorAll('.trail-row'));
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toContain('idle'); // newest first
-    expect(rows[0].textContent).toContain('standby');
-    expect(rows[1].textContent).toContain('standoff 5 → 7 m');
+    // DOM order is append-order; the container displays newest-first (column-reverse), so DOM-LAST = newest
+    expect(rows[rows.length - 1].textContent).toContain('idle'); // newest
+    expect(rows[rows.length - 1].textContent).toContain('standby');
+    expect(rows[0].textContent).toContain('standoff 5 → 7 m');
   });
 
   test('header shows commissioning-agent status dot (idle until Wave 3 connects the brain)', () => {
@@ -27,7 +28,8 @@ describe('createAgentConsole', () => {
     const host = document.createElement('div');
     const con = createAgentConsole(host);
     for (let i = 0; i < 60; i++) con.log({ state: `s${i}`, decision: `d${i}`, applied: `a${i}` });
+    const rows60 = Array.from(host.querySelectorAll('.trail-row')).at(-1);
     expect(host.querySelectorAll('.trail-row')).toHaveLength(50);
-    expect(host.querySelector('.trail-row')?.textContent).toContain('s59');
+    expect(rows60?.textContent).toContain('s59');
   });
 });

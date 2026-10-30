@@ -31,12 +31,12 @@ export function createAgentConsole(host: HTMLElement): {
       const row = document.createElement('div');
       row.className = 'trail-row';
       row.innerHTML = `
-        <span class="s">${escapeHtml(entry.state)}</span>
-        <span class="d">→ ${escapeHtml(entry.decision)}</span>
-        <span class="a">→ ${escapeHtml(entry.applied)}</span>
+        <div class="cell obs"><span class="lbl">observed</span>${escapeHtml(entry.state)}</div>
+        <div class="cell dec"><span class="lbl">decided</span>${escapeHtml(entry.decision)}</div>
+        <div class="cell app"><span class="lbl">applied</span>${escapeHtml(entry.applied)}</div>
       `;
-      trail.prepend(row);
-      while (trail.children.length > MAX_ROWS) trail.lastElementChild?.remove();
+      trail.append(row); // newest appended last; CSS column-reverse shows newest on top
+      while (trail.children.length > MAX_ROWS) trail.firstElementChild?.remove();
       dot.classList.replace('dot-idle', 'dot-live');
       status.textContent = 'acting';
     },
@@ -46,7 +46,9 @@ export function createAgentConsole(host: HTMLElement): {
       status.textContent = text;
     },
     rowText(i: number): string | null {
-      return (trail.children[i] as HTMLElement | undefined)?.textContent ?? null;
+      // i = 0 is the NEWEST row (container is displayed column-reverse)
+      const n = trail.children.length;
+      return (trail.children[n - 1 - i] as HTMLElement | undefined)?.textContent ?? null;
     },
   };
 }

@@ -62,7 +62,10 @@ function rerun(): void {
   }
   el('v-db').textContent = `${result.reductionDb.toFixed(1)} dB`;
   el('v-lead').textContent = `${leadMs(geo).toFixed(0)} ms`;
-  el('v-geo').textContent = `towers ${geo.towerMeters.toFixed(0)} m · zone ${geo.zoneMeters.toFixed(0)} m · array ${geo.standoffMeters.toFixed(1)} m`;
+  // traffic loudness at the zone vs the roadside: line-source gain 10/(10+d)
+  const ambDb = 20 * Math.log10(10 / (10 + geo.zoneMeters));
+  el('v-amb').textContent = `${ambDb.toFixed(1)} dB vs roadside`;
+  el('v-geo').textContent = `towers ${geo.towerMeters.toFixed(0)} m · zone ${geo.zoneMeters.toFixed(0)} m · array ${geo.standoffMeters.toFixed(1)} m · ${geo.speakers} nodes @ ${geo.spacingMeters ?? 4} m`;
   if (audio) rebuildAudio(cfg);
   draw();
 }
@@ -183,6 +186,19 @@ for (const n of [1, 2, 3, 5]) {
   el('speakers').appendChild(b);
 }
 
+// node spacing knob (vertical spread of the array; 1–8 m physical)
+for (const s of [2, 4, 6]) {
+  const b = document.createElement('button');
+  b.textContent = `${s} m`;
+  if ((geo.spacingMeters ?? 4) === s) b.classList.add('active');
+  b.addEventListener('click', () => {
+    geo.spacingMeters = s;
+    for (const c of el('spacing').children) c.classList.toggle('active', c === b);
+    rerun();
+  });
+  el('spacing').appendChild(b);
+}
+
 // wave-frequency selector: watch the quiet band shrink as the wavelength shortens — the physical honesty knob
 for (const f of [63, 100, 250, 630]) {
   const b = document.createElement('button');
@@ -268,10 +284,10 @@ canvas.addEventListener('pointerdown', (ev) => {
 canvas.addEventListener('pointermove', (ev) => {
   if (!dragging) return;
   const m = Math.max(0.5, pxToMeters(ev.offsetX, canvas.clientWidth));
-  if (dragging === 'tower') geo.towerMeters = Math.min(m, WORLDmax());
-  if (dragging === 'zone') geo.zoneMeters = Math.min(m, WORLDmax());
+  if (dragging === 'tower') geo.towerMeters = clampTower(m);
+  if (dragging === 'zone') geo.zoneMeters = clampZone(m);
   if (dragging === 'speaker') {
-    geo.standoffMeters = Math.max(0.5, geo.zoneMeters - m); // array on the tower side of the zone
+    geo.standoffMeters = clampStandoff(geo.zoneMeters - m); // array keeps its standoff from the zone (by design)
   }
   canvas.classList.add('dragging');
   draw(dragging);
@@ -282,8 +298,16 @@ canvas.addEventListener('pointerup', () => {
   rerun(); // full re-run only here (not per move — frame budget)
 });
 
-function WORLDmax(): number {
-  return 59;
+// live clamps — nothing can be dragged onto the road or into physically impossible spots
+function clampTower(m: number): number {
+  return Math.max(5, Math.min(59, m));
+}
+function clampZone(m: number): number {
+  const minZone = geo.towerMeters + geo.standoffMeters + 3.4; // keeps the fiber lead physically meaningful
+  return Math.max(minZone, Math.min(59, m));
+}
+function clampStandoff(s: number): number {
+  return Math.max(0.5, Math.min(25, Math.min(s, geo.zoneMeters - 6 - 1))); // never on the road band
 }
 
 window.addEventListener('resize', () => draw());

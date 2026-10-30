@@ -1,5 +1,5 @@
 import { CONFIG } from '../core/rng.js';
-import { WORLD, leadMs, SPEAKER_SPACING_M, type Geometry } from './geometry.js';
+import { WORLD, leadMs, spacingOf, type Geometry } from './geometry.js';
 
 export type Marker = 'tower' | 'speaker' | 'zone';
 
@@ -15,7 +15,7 @@ export type Wave = { amb: number; anti: number; sum: number };
 export function nodeOffsets(geo: Geometry): number[] {
   const n = geo.speakers;
   const out: number[] = [];
-  for (let k = 0; k < n; k++) out.push(SPEAKER_SPACING_M * (k - (n - 1) / 2));
+  for (let k = 0; k < n; k++) out.push(spacingOf(geo) * (k - (n - 1) / 2));
   return out;
 }
 
@@ -56,7 +56,7 @@ const BEAM = 8;
  * (±(node span)/2 + 0.75λ), dB vs ambient alone. */
 export function zoneDepthDb(geo: Geometry, corridorY: number, freqHz: number): number {
   const lam = CONFIG.SPEED_OF_SOUND / freqHz;
-  const span = (SPEAKER_SPACING_M * (geo.speakers - 1)) / 2 + lam * 0.75;
+  const span = (spacingOf(geo) * (geo.speakers - 1)) / 2 + lam * 0.75;
   let sAmb = 0;
   let sSum = 0;
   const n = 64;
@@ -123,8 +123,14 @@ export function renderField(
   const speakerX = mx(geo.zoneMeters - geo.standoffMeters, w);
   const zx = mx(geo.zoneMeters, w);
   marker(towerX, corridorY, 'Sensor', '#7f8ff4', opts.highlight === 'tower', true);
-  // one marker per array node (spread shows the honest quiet-band width)
+  // one quiet band per array node — their UNION is the honest quiet zone; visibly wider with more nodes
   const yScale = stripTop / WORLD.heightMeters;
+  for (const off of nodeOffsets(geo)) {
+    const nodeY = corridorY + off * yScale;
+    const half = lam * 0.75 * yScale;
+    c2d.fillStyle = 'rgba(79,209,197,0.10)';
+    c2d.fillRect(speakerX, nodeY - half, w - speakerX, half * 2);
+  }
   for (const off of nodeOffsets(geo)) {
     marker(speakerX, corridorY + off * yScale, 'Array', '#4fd1c5', opts.highlight === 'speaker', off >= 0);
   }
