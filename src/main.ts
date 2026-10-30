@@ -6,6 +6,7 @@ import { renderField, hitTest, pxToMeters, type Marker } from './ui/fieldViz.js'
 import { createAgentConsole } from './ui/agentConsole.js';
 import { runAgentTurn } from './brain/loop.js';
 import type { AgentDecision, Brain } from './brain/brain.js';
+import { parseSamBoxes, interpretPlacement, type PlacementProposal } from './brain/placement.js';
 
 const agentConsole = createAgentConsole(el('agent-console'));
 agentConsole.setStatus('idle — brain: muse-spark-open-1026 on Baseten (via /api/brain proxy)', false);
@@ -194,6 +195,48 @@ for (const f of [63, 100, 250, 630]) {
   });
   el('waves').appendChild(b);
 }
+
+// photo → SAM 3.1 → placement proposal (user confirms before applying)
+let proposal: PlacementProposal | null = null;
+el('btn-seg').addEventListener('click', async () => {
+  const b = el<HTMLButtonElement>('btn-seg');
+  const noteEl = el<HTMLParagraphElement>('place-note');
+  const url = el<HTMLInputElement>('photo-url').value.trim();
+  if (!url) {
+    noteEl.textContent = 'paste a photo URL first';
+    return;
+  }
+  b.disabled = true;
+  noteEl.textContent = 'segmenting with SAM 3.1 (two passes: road, open ground)…';
+  try {
+    const seg = async (prompt: string): Promise<string> => {
+      const r = await fetch('/api/sam', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: url, prompt }) });
+      const j = (await r.json()) as { ok: boolean; output?: string; reason?: string };
+      if (!j.ok) throw new Error(j.reason ?? 'segmentation failed');
+      return j.output ?? '';
+    };
+    const road = parseSamBoxes(await seg('road'));
+    const zone = parseSamBoxes(await seg('open ground'));
+    proposal = interpretPlacement({ road, zone }, 1, 1);
+    noteEl.textContent = proposal.note;
+    agentConsole.log({ state: 'photo segmented', decision: 'placement proposed', applied: `tower ${proposal.towerMeters} m · zone ${proposal.zoneMeters} m · ${proposal.speakers} nodes` });
+    el<HTMLButtonElement>('btn-apply-place').disabled = proposal.fallback;
+  } catch (e) {
+    noteEl.textContent = e instanceof Error ? e.message : 'segmentation failed';
+    el<HTMLButtonElement>('btn-apply-place').disabled = true;
+  } finally {
+    b.disabled = false;
+  }
+});
+el('btn-apply-place').addEventListener('click', () => {
+  if (!proposal || proposal.fallback) return;
+  geo.towerMeters = proposal.towerMeters;
+  geo.zoneMeters = proposal.zoneMeters;
+  geo.standoffMeters = proposal.standoffMeters;
+  geo.speakers = proposal.speakers;
+  rerun();
+  agentConsole.log({ state: 'proposal confirmed', decision: 'applied to geometry', applied: 'field re-run with photo-derived placement' });
+});
 
 // consult the real commissioning agent (Muse Spark Open via the dev proxy — the key never reaches the browser)
 el('btn-agent').addEventListener('click', async () => {

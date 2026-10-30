@@ -1,5 +1,6 @@
 import { defineConfig, type ViteDevServer, type Plugin } from 'vite';
 import { createBasetenRoute } from './src/brain/baseten.js';
+import { segmentImage } from './src/brain/samApi.js';
 
 /** Dev-side brain proxy: the browser posts the agent state, the server holds the Baseten key —
  * the key never enters client code or the public repo. Falls back to a key file outside the repo. */
@@ -49,5 +50,45 @@ function readKeyFromFile(path: string): string {
 export default defineConfig({
   server: { port: 5199, strictPort: true }, // booked: keelsure keeps 5173 (port discipline across parallel sessions)
   preview: { port: 5199, strictPort: true },
-  plugins: [brainProxyPlugin()],
+  plugins: [brainProxyPlugin(), samProxyPlugin()],
 });
+
+/** SAM 3.1 proxy — same key discipline as the brain route. */
+function samProxyPlugin(): Plugin {
+  return {
+    name: 'antinoise-sam-proxy',
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use('/api/sam', async (req, res) => {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        let parsed: { imageUrl?: string; prompt?: string };
+        try {
+          parsed = JSON.parse(body);
+        } catch {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ ok: false, reason: 'bad request' }));
+          return;
+        }
+        if (!parsed.imageUrl || !parsed.prompt) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ ok: false, reason: 'imageUrl and prompt required' }));
+          return;
+        }
+        const r = await segmentImage(resolveApiKey(), parsed.imageUrl, parsed.prompt);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(r));
+      });
+    },
+  };
+}
+
+function resolveApiKey(): string {
+  const env = process.env.MODEL_API_KEY;
+  if (env) return env;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return (require('node:fs').readFileSync('/Users/eeroekebom/projects/additional_utilization/baseten/meta-api-key.txt', 'utf8') as string).trim();
+  } catch {
+    return 'missing';
+  }
+}

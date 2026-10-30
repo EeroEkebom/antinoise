@@ -95,6 +95,11 @@ button.primary.active { background: #175a52; color: #eafffb; }
 .knob-label { color: var(--text-dim); font-size: 0.85rem; align-self: center; }
 .hint.small { font-size: 0.78rem; }
 
+.grow { flex: 1 1 240px; }
+button:disabled { opacity: 0.5; cursor: wait; }
+
+#photo .hint { white-space: pre-wrap; }
+
 .legend { justify-content: flex-start; }
 .legend-item { color: var(--text-dim); font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }

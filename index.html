@@ -56,6 +56,18 @@
       </div>
       <div id="agent-console"></div>
 
+      <section id="photo" class="card">
+        <h2>Place from a photo (SAM 3.1)</h2>
+        <div class="row">
+          <input id="photo-url" class="grow" type="url" placeholder="Paste a public street-photo URL…" />
+        </div>
+        <div class="row">
+          <button id="btn-seg">Segment & propose placement →</button>
+          <button id="btn-apply-place" class="primary" disabled>Apply proposal</button>
+        </div>
+        <p class="hint" id="place-note"></p>
+      </section>
+
       <section id="how" class="card">
         <h2>How it's constructed</h2>
         <div class="flow">
