@@ -49,11 +49,12 @@ export function createBasetenRoute(apiKey: string, fetchFn: Fetcher = fetch as u
     propose: async (state: AgentState): Promise<AgentDecision> => {
       let reply: Reply;
       let budget = 2048;
+      const redact = (s: string): string => s.replace(/Bearer\s*[^"']+/gi, 'Bearer <redacted>').slice(0, 200);
       try {
         reply = await call(budget, state);
         if (!reply.choices) return { kind: 'unavailable', reason: `HTTP ${(reply as { status?: number }).status ?? '?'} ${(reply as { statusText?: string }).statusText ?? ''}`.trim() };
       } catch (e) {
-        return { kind: 'unavailable', reason: e instanceof Error ? e.message : String(e) };
+        return { kind: 'unavailable', reason: redact(e instanceof Error ? e.message : String(e)) };
       }
 
       // reasoning model: with a small budget it can spend everything thinking and return content:null → retry with 2×
@@ -64,7 +65,7 @@ export function createBasetenRoute(apiKey: string, fetchFn: Fetcher = fetch as u
           reply = await call(budget, state);
           content = reply.choices?.[0]?.message?.content;
         } catch (e) {
-          return { kind: 'unavailable', reason: e instanceof Error ? e.message : String(e) };
+          return { kind: 'unavailable', reason: redact(e instanceof Error ? e.message : String(e)) };
         }
         if (content == null || content.trim() === '') {
           return { kind: 'unavailable', reason: 'model spent its entire token budget reasoning — no decision content' };

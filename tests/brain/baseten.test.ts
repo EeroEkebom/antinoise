@@ -88,4 +88,14 @@ describe('BasetenRoute', () => {
     const d = await route.propose(SAMPLE_STATE);
     expect(d).toHaveProperty('kind', 'unavailable');
   });
+
+  test('a thrown fetch error mentioning the key is redacted in the reason', async () => {
+    const route = createBasetenRoute('test-key', async () => {
+      throw new Error('Headers.append: "Bearer b10_SECRETSECRETSECRET.abc123" is an invalid header value.');
+    });
+    const d = await route.propose(SAMPLE_STATE);
+    const reason = d.kind === 'unavailable' ? d.reason : '';
+    expect(reason).not.toContain('b10_SECRET');
+    expect(reason).toContain('<redacted>');
+  });
 });

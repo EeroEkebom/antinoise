@@ -1,6 +1,7 @@
 import { defineConfig, type ViteDevServer, type Plugin } from 'vite';
 import { createBasetenRoute } from './src/brain/baseten.js';
 import { segmentImage } from './src/brain/samApi.js';
+import { extractKey } from './src/core/keyfile.js';
 
 /** Dev-side brain proxy: the browser posts the agent state, the server holds the Baseten key —
  * the key never enters client code or the public repo. Falls back to a key file outside the repo. */
@@ -39,12 +40,19 @@ function resolveKey(): string {
 }
 
 function readKeyFromFile(path: string): string {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const txt = require('node:fs').readFileSync(path, 'utf8') as string;
-  return txt
-    .replace(/\\[a-z0-9]+[ ]?/gi, '')
-    .replace(/[{}\\]/g, '')
-    .trim();
+  const { readFileSync } = require('node:fs') as { readFileSync: (p: string, enc: string) => string };
+  return extractKey(readFileSync(path, 'utf8'), 'b10_');
+}
+
+function readApiKeyLegacy(): string {
+  // Meta Model API keys are long opaque tokens; anchor on any 40+ char run
+  try {
+    const { readFileSync } = require('node:fs') as { readFileSync: (p: string, enc: string) => string };
+    const txt = readFileSync('/Users/eeroekebom/projects/additional_utilization/baseten/meta-api-key.txt', 'utf8');
+    return extractKey(txt, '');
+  } catch {
+    return 'missing';
+  }
 }
 
 export default defineConfig({
@@ -87,8 +95,9 @@ function resolveApiKey(): string {
   if (env) return env;
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return (require('node:fs').readFileSync('/Users/eeroekebom/projects/additional_utilization/baseten/meta-api-key.txt', 'utf8') as string).trim();
+    const { readFileSync } = require('node:fs') as { readFileSync: (p: string, enc: string) => string };
+    return extractKey(readFileSync('/Users/eeroekebom/projects/additional_utilization/baseten/meta-api-key.rtf', 'utf8'), 'sk-');
   } catch {
-    return 'missing';
+    return readApiKeyLegacy();
   }
 }
