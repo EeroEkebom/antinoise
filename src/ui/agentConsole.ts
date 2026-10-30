@@ -5,9 +5,13 @@ export type ConsoleEntry = { state: string; decision: string; applied: string };
 
 const MAX_ROWS = 50;
 
+export type AgentConsole = ReturnType<typeof createAgentConsole>;
+
 export function createAgentConsole(host: HTMLElement): {
   log(entry: ConsoleEntry): void;
   setStatus(text: string, live: boolean): void;
+  /** Test/support accessor: text of the i-th (0 = newest) trail row. */
+  rowText(i: number): string | null;
 } {
   host.classList.add('agent-console');
   host.innerHTML = `
@@ -40,6 +44,9 @@ export function createAgentConsole(host: HTMLElement): {
       dot.classList.toggle('dot-live', live);
       dot.classList.toggle('dot-idle', !live);
       status.textContent = text;
+    },
+    rowText(i: number): string | null {
+      return (trail.children[i] as HTMLElement | undefined)?.textContent ?? null;
     },
   };
 }

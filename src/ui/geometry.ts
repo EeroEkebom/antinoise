@@ -3,6 +3,7 @@ import { CONFIG } from '../core/rng.js';
 
 /** Top-down world rectangle: road is the left edge (x = 0), everything in meters. */
 export const WORLD = { widthMeters: 60, heightMeters: 40 };
+export const WORLD_HEIGHT_M = WORLD.heightMeters;
 
 /** Sensor line spacing between array nodes, meters — a fixed hardware choice (physical, frequency-independent). */
 export const SPEAKER_SPACING_M = 4;
