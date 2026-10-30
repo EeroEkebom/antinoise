@@ -45,10 +45,10 @@ export function validateGeometry(g: Geometry): Validated {
   const standoffSamples = Math.round((g.standoffMeters / CONFIG.SPEED_OF_SOUND) * CONFIG.SIM_SAMPLE_RATE);
   const alignment = leadSamples - towerSamples - standoffSamples;
   if (g.towerMeters > 4 && alignment < 0) {
-    const minTower = ((leadSamples - standoffSamples) / CONFIG.SIM_SAMPLE_RATE) * CONFIG.SPEED_OF_SOUND;
+    const maxTower = ((leadSamples - standoffSamples) / CONFIG.SIM_SAMPLE_RATE) * CONFIG.SPEED_OF_SOUND;
     return {
       ok: false,
-      message: `Infeasible lead: raise tower separation to ≥ ${minTower.toFixed(1)} m for this zone distance`,
+      message: `Infeasible lead: the sensor must be closer to the road — lower tower separation to ≤ ${maxTower.toFixed(1)} m for this zone distance`,
     };
   }
   return { ok: true };

@@ -79,10 +79,11 @@ export function runScenario(cfg: ScenarioConfig): ScenarioResult {
   }
   const alignment = ambient0 - tower0 - standoff0;
   if (modelFiberLead && alignment < 0) {
-    const minTowerMeters = ((ambient0 - standoff0) / sr) * c;
+    // tower too far from the road = the reference arrives too late; lower the tower for more lead
+    const maxTowerMeters = ((ambient0 - standoff0) / sr) * c;
     throw new Error(
-      `infeasible lead: tower separation ${cfg.towerSeparationMeters} m gives ${tower0} samples of reference ` +
-        `but alignment needs ${ambient0 - standoff0}; raise tower separation to ≥ ${minTowerMeters.toFixed(1)} m`,
+      `infeasible lead: tower separation ${cfg.towerSeparationMeters} m leaves no reference head start ` +
+        `over the ${(cfg.zoneSeparationMeters).toFixed(1)} m zone; lower tower separation to ≤ ${maxTowerMeters.toFixed(1)} m`,
     );
   }
   const preDelayBuf = new Float32Array(preDelay);
