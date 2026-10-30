@@ -3,10 +3,20 @@ import { runScenario, type ScenarioConfig, type ScenarioResult } from './core/sc
 import { prepareAudioBuffers } from './audio/bridge.js';
 import { validateGeometry, geometryToScenarioConfig, leadMs, type Geometry } from './ui/geometry.js';
 import { renderField, hitTest, pxToMeters, type Marker } from './ui/fieldViz.js';
-import { createAgentConsole } from './ui/agentConsole.js';
+import { createAgentConsole, type AgentConsole } from './ui/agentConsole.js';
+import { runAgentTurn } from './brain/loop.js';
+import type { AgentDecision, Brain } from './brain/brain.js';
 
 const agentConsole = createAgentConsole(el('agent-console'));
-agentConsole.setStatus('idle — connects to a Muse model in Phase 3', false);
+agentConsole.setStatus('idle — brain: muse-spark-open-1026 on Baseten (via /api/brain proxy)', false);
+
+/** Browser-side brain: talks to the dev-server proxy, which alone holds the API key. */
+const proxyBrain: Brain = {
+  propose: async (state): Promise<AgentDecision> => {
+    const res = await fetch('/api/brain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) });
+    return (await res.json()) as AgentDecision;
+  },
+};
 
 const SEEDS = [42, 7, 99];
 
@@ -184,6 +194,24 @@ for (const f of [63, 100, 250, 630]) {
   });
   el('waves').appendChild(b);
 }
+
+// consult the real commissioning agent (Muse Spark Open via the dev proxy — the key never reaches the browser)
+el('btn-agent').addEventListener('click', async () => {
+  const btn = el<HTMLButtonElement>('btn-agent');
+  if (!result) rerun();
+  if (!result) return;
+  btn.disabled = true;
+  try {
+    const next = await runAgentTurn(proxyBrain, geo, result, agentConsole);
+    geo.towerMeters = next.geometry.towerMeters;
+    geo.zoneMeters = next.geometry.zoneMeters;
+    geo.standoffMeters = next.geometry.standoffMeters;
+    geo.speakers = next.geometry.speakers;
+    rerun();
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 // drag interaction on the field
 const canvas = el<HTMLCanvasElement>('field');
