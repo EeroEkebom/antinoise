@@ -44,4 +44,8 @@ npm run dev       # http://localhost:5199 (Safari-first)
 - Low-frequency scope (< ~500 Hz) is a physical necessity, not a shortcut.
 - The zone's depth depends on the wavelength — the UI shows where cancellation genuinely fails.
 
-Licence: MIT (see LICENSE).
+## Licence
+
+MIT (see LICENSE). Copyright (c) 2026 Eero Ekebom / Don Ton Entertainment Ltd.
+A deliberate one-repo exception to the usual proprietary default: the hackathon rules require
+open-sourcing the built work, and the company holds the copyright while granting permissive use.
