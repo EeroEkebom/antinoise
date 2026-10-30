@@ -7,6 +7,7 @@ import { createAgentConsole } from './ui/agentConsole.js';
 import { runAgentTurn } from './brain/loop.js';
 import type { AgentDecision, Brain } from './brain/brain.js';
 import { parseSamBoxes, interpretPlacement, type PlacementProposal } from './brain/placement.js';
+import { createTour } from './ui/tour.js';
 
 const agentConsole = createAgentConsole(el('agent-console'));
 agentConsole.setStatus('idle — brain: muse-spark-open-1026 on Baseten (via /api/brain proxy)', false);
@@ -252,6 +253,24 @@ el('btn-apply-place').addEventListener('click', () => {
   geo.speakers = proposal.speakers;
   rerun();
   agentConsole.log({ state: 'proposal confirmed', decision: 'applied to geometry', applied: 'field re-run with photo-derived placement' });
+});
+
+// guided tour: walks the page, scrolls + highlights each section
+const tourHost = document.createElement('div');
+tourHost.id = 'tour';
+document.getElementById('app')!.appendChild(tourHost);
+el('btn-tour').addEventListener('click', () => {
+  tourHost.innerHTML = '';
+  createTour(tourHost, {
+    onFocus: (id) => {
+      for (const c of tourHost.parentElement?.parentElement?.querySelectorAll('.tour-on') ?? [])
+        c.classList.remove('tour-on');
+      if (!id) return;
+      const target = document.getElementById(id.startsWith('listen-knobs') ? 'listen' : id);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target?.classList.add('tour-on');
+    },
+  });
 });
 
 // consult the real commissioning agent (Muse Spark Open via the dev proxy — the key never reaches the browser)

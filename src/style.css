@@ -142,4 +142,27 @@ button:disabled { opacity: 0.5; cursor: wait; }
 .flow-node.accent { border-color: var(--accent-dim); color: #bfeee9; }
 .flow-arrow { align-self: center; color: var(--text-dim); }
 
+#tour { position: fixed; bottom: 16px; right: 16px; z-index: 50; max-width: 340px; }
+#tour:empty { display: none; }
+.tour-card {
+  background: var(--surface);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tour-head { display: flex; justify-content: space-between; align-items: center; color: var(--accent); }
+.tour-x { padding: 2px 8px; font-size: 0.8rem; }
+.tour-nav { display: flex; justify-content: space-between; align-items: center; }
+.tour-dots { display: flex; gap: 4px; }
+.tour-dots span { color: var(--text-dim); font-size: 0.75rem; width: 16px; text-align: center; }
+.tour-dots .active { color: var(--accent); font-weight: 600; }
+.tour-btns { display: flex; gap: 6px; }
+.tour-btns button { padding: 4px 10px; font-size: 0.8rem; }
+
+.tour-on { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius); }
+
 footer { color: var(--text-dim); font-size: 0.8rem; }

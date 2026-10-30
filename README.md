@@ -49,3 +49,5 @@ npm run dev       # http://localhost:5199 (Safari-first)
 MIT (see LICENSE). Copyright (c) 2026 Eero Ekebom / Don Ton Entertainment Ltd.
 A deliberate one-repo exception to the usual proprietary default: the hackathon rules require
 open-sourcing the built work, and the company holds the copyright while granting permissive use.
+
+See [TUTORIAL.md](TUTORIAL.md) for the full walkthrough — or take the 60-second tour inside the app.
