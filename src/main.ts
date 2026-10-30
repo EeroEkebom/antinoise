@@ -3,7 +3,7 @@ import { runScenario, type ScenarioConfig, type ScenarioResult } from './core/sc
 import { prepareAudioBuffers } from './audio/bridge.js';
 import { validateGeometry, geometryToScenarioConfig, leadMs, type Geometry } from './ui/geometry.js';
 import { renderField, hitTest, pxToMeters, type Marker } from './ui/fieldViz.js';
-import { createAgentConsole, type AgentConsole } from './ui/agentConsole.js';
+import { createAgentConsole } from './ui/agentConsole.js';
 import { runAgentTurn } from './brain/loop.js';
 import type { AgentDecision, Brain } from './brain/brain.js';
 
