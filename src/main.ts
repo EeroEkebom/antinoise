@@ -130,6 +130,7 @@ function toggle(stream: 'open' | 'closed'): void {
 }
 
 // transport buttons: first gesture creates the AudioContext (autoplay policy)
+el('btn-tour-mini').addEventListener('click', () => el<HTMLButtonElement>('btn-tour').click());
 el('btn-noise').addEventListener('click', () => {
   if (!audio) void initAudio().then(() => toggle('open'));
   else toggle('open');
@@ -214,6 +215,10 @@ for (const f of [63, 100, 250, 630]) {
 }
 
 // photo → SAM 3.1 → placement proposal (user confirms before applying)
+const EXAMPLE_PHOTO = 'https://upload.wikimedia.org/wikipedia/commons/9/9b/Traffic_jam_Sao_Paulo_09_2006_30a.jpg';
+el('btn-example').addEventListener('click', () => {
+  el<HTMLInputElement>('photo-url').value = EXAMPLE_PHOTO;
+});
 let proposal: PlacementProposal | null = null;
 el('btn-seg').addEventListener('click', async () => {
   const b = el<HTMLButtonElement>('btn-seg');
@@ -317,16 +322,19 @@ canvas.addEventListener('pointerup', () => {
   rerun(); // full re-run only here (not per move — frame budget)
 });
 
-// live clamps — nothing can be dragged onto the road or into physically impossible spots
+// live clamps — strict physical order: road < sensor tower < cancel array < quiet zone
+const TOWER_MIN = 8; // m from the road; the sensor never sits in the noise it listens to
 function clampTower(m: number): number {
-  return Math.max(5, Math.min(59, m));
+  return Math.max(TOWER_MIN, Math.min(geo.zoneMeters - geo.standoffMeters - 2, m));
 }
 function clampZone(m: number): number {
   const minZone = geo.towerMeters + geo.standoffMeters + 3.4; // keeps the fiber lead physically meaningful
   return Math.max(minZone, Math.min(59, m));
 }
 function clampStandoff(s: number): number {
-  return Math.max(0.5, Math.min(25, Math.min(s, geo.zoneMeters - 6 - 1))); // never on the road band
+  // the array always stays tower-side of the zone and never nearer the road than the sensor
+  const maxS = Math.min(25, geo.zoneMeters - Math.max(TOWER_MIN, geo.towerMeters) - 2);
+  return Math.max(0.5, Math.min(s, maxS));
 }
 
 window.addEventListener('resize', () => draw());

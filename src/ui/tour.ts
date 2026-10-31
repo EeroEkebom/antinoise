@@ -8,27 +8,27 @@ export const TOUR_STEPS: TourStep[] = [
   {
     target: 'listen',
     title: '1 · Hear the physics',
-    body: 'Pick a traffic mix, then flip between "Traffic noise" and "With Antinoise field". Same traffic, one flip: the quiet zone hears the field — ~20 dB less rumble. Headphones recommended.',
+    body: 'Flip between "Traffic noise" and "With Antinoise field". It is the same traffic, at the same moment — the only thing that changes is what the quiet zone hears: with the field, the anti-noise arrives and cancels the rumble (~20 dB quieter). Traffic mixes A/B/C are different random traffic patterns — like different times of day on the same road.',
   },
   {
     target: 'field',
     title: '2 · The field map',
-    body: 'Drag the sensor tower (closer to the road = longer fiber lead), the cancel array, and the quiet zone. The shaded bands mark where cancellation is physically honest; the teal sum-curve below is what the zone actually hears.',
+    body: 'Drag the sensor tower (closer to the road = longer fiber lead, shown in ms), the cancel array, and the quiet zone. The shaded bands are where the array can really cancel at the current frequency (within ¾ of a wavelength of each node — outside them the waves no longer line up). Color meaning: blue-green = cancellation side of the wave (quiet), warm orange-red = constructive side (louder); brightness = how strong; where both wavefronts cancel, the color fades to dark.',
   },
   {
     target: 'listen-knobs',
     title: '3 · The knobs',
-    body: 'Array nodes widen the honest quiet band; node spacing spreads them along the road; wave frequency re-renders the map at 63–630 Hz — watch the wavelength cap shrink the zone as the waves shorten; traffic level scales loudness (but not reduction — feedforward is scale-invariant).',
+    body: 'Array nodes widen the quiet zone (each node covers its own band; the shading shows the union). Node spacing spreads the nodes along the road. Wave frequency re-renders the map at 63–630 Hz — watch the zone shrink as wavelength shortens. Traffic level changes loudness only: cancellation quality is independent of loudness (linear physics).',
   },
   {
     target: 'agent-console',
-    title: '4 · The commissioning agent',
-    body: 'Meta\'s open-weights Muse Spark Open reads the live field (dB, lead, geometry) and proposes validated physical changes — you see its reasoning: observed → decided → applied, with the measured after-dB. If it cannot improve honestly, it stands down.',
+    title: '4 · The commissioning agent (does the tuning for you)',
+    body: 'Meta\'s open-weights Muse Spark Open looks at the current situation — loudness, lead time, geometry, how deep the cancellation is at each frequency — weighs what is physically possible, and proposes design changes (tower distance, node count, spacing, standoff, adaptation rate). The field is then re-measured so you see whether it helped: observed → decided → applied, with receipts. If it concludes no change would help within the physics, it changes nothing — rather than risk making the noise louder.',
   },
   {
     target: 'photo',
     title: '5 · Place from a photo',
-    body: 'Paste a public street photo URL: SAM 3.1 segments the road and open ground, and proposes a placement from the photo\'s proportions — you confirm before it applies.',
+    body: 'Example: take a street photo where the road runs along the bottom. SAM 3.1 segments the road and the open ground above it; the placement engine converts the photo\'s proportions to meters and proposes — say — a zone ~35 m from the road with 3 array nodes. The note explains its proposal; you confirm with Apply, then the field re-runs with the new geometry. You can also just paste your own photo URL.',
   },
 ];
 

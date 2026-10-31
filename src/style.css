@@ -97,8 +97,9 @@ button.primary.active { background: #175a52; color: #eafffb; }
 
 .grow { flex: 1 1 240px; }
 button:disabled { opacity: 0.5; cursor: wait; }
+button.mini { padding: 1px 8px; font-size: 0.75rem; }
 
-#photo .hint { white-space: pre-wrap; }
+#photo .hint { white-space: normal; }
 
 .legend { justify-content: flex-start; }
 .legend-item { color: var(--text-dim); font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; }

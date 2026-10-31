@@ -20,7 +20,7 @@
 
       <section id="listen" class="card">
         <h2>Listen to your quiet zone</h2>
-        <p class="hint">Headphones recommended. Pick a traffic mix, then toggle what the zone hears. Drag the markers on the field map below.</p>
+        <p class="hint">Headphones recommended. <button id="btn-tour-mini" class="mini">Take the 60-second tour →</button> · Traffic mixes A/B/C are different random traffic patterns on the same road (like different times of day). Drag the markers on the field map below.</p>
         <div id="scenarios" class="row"></div>
         <div id="traffic" class="row">
           <span class="knob-label">Traffic level:</span>
@@ -63,6 +63,7 @@
 
       <section id="photo" class="card">
         <h2>Place from a photo (SAM 3.1)</h2>
+        <p class="hint">A street photo is analyzed by SAM 3.1: it finds the road and the open ground, and proposes where the sensor tower, cancel array and quiet zone could sit. <button id="btn-example" class="mini">Use example photo</button></p>
         <div class="row">
           <input id="photo-url" class="grow" type="url" placeholder="Paste a public street-photo URL…" />
         </div>
@@ -81,14 +82,14 @@
           <span class="flow-node accent">Optical fiber<small>analysis is faster than sound — the whole idea</small></span><span class="flow-arrow"></span>
           <span class="flow-node">Controller<small>FXLMS filter + emission scheduler</small></span><span class="flow-arrow"></span>
           <span class="flow-node">Cancel array<small>anti-noise timed to meet the wavefront</small></span><span class="flow-arrow"></span>
-          <span class="flow-node">Quiet zone<small>λ-capped, honest</small></span>
+          <span class="flow-node">Quiet zone<small>extends as far as the wavelength allows</small></span>
         </div>
         <p class="hint">
           The controller must emit the anti-noise (traveling <em>d</em><sub>array→zone</sub>) so it meets the
           ambient wavefront (traveling <em>d</em><sub>road→zone</sub>) exactly — the head start between tower
           reference and zone arrival is the lead the fiber buys: <em>lead = (d<sub>zone</sub> − d<sub>tower</sub> − d<sub>standoff</sub>) / 343 m/s</em>.
           Deep rumble (long wavelength) cancels across a region; short waves only in a narrow spot — that's
-          why this field honest-scopes to low frequencies, while headphones (your eardrum) can go much higher.
+          why this field targets low frequencies by physics, while headphones (your eardrum) can go much higher.
         </p>
       </section>
 
