@@ -27,6 +27,8 @@ let audio: Audio | null = null;
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 let seed = SEEDS[0];
 let freqHz = 100;
+let sourceSignal: Float32Array | null = null; // the CC0 real-recording preset's decoded 16 kHz signal
+let cachedRecording: Float32Array | null = null;
 let result: ScenarioResult | null = null;
 let dragging: Marker | null = null;
 
@@ -55,6 +57,7 @@ function rerun(): void {
   }
   banner(null);
   const cfg: ScenarioConfig = geometryToScenarioConfig(geo, { seed, sampleCount: 160000 });
+  if (sourceSignal) cfg.sourceSignal = sourceSignal; // real-recording preset when loaded
   try {
     result = runScenario(cfg);
   } catch (e) {
@@ -149,6 +152,45 @@ el('btn-stop').addEventListener('click', () => {
 });
 
 // traffic mix picker
+async function loadRecording(): Promise<Float32Array> {
+  if (cachedRecording) return cachedRecording;
+  const res = await fetch('/audio/traffic-cc0-45s.wav');
+  const ab = await res.arrayBuffer();
+  // decode + resample to the sim rate (the WAV itself is 16 kHz)
+  const probe = new AudioContext();
+  const decoded = await probe.decodeAudioData(ab);
+  void probe.close();
+  const off = new OfflineAudioContext(1, decoded.length, 16000);
+  const s = off.createBufferSource();
+  s.buffer = decoded;
+  s.connect(off.destination);
+  s.start();
+  const rendered = await off.startRendering();
+  cachedRecording = rendered.getChannelData(0).slice();
+  return cachedRecording;
+}
+const btnReal = document.createElement('button');
+btnReal.textContent = 'Real recording (CC0)';
+btnReal.title = 'Real urban traffic recording (public domain, Wikimedia Commons); toggles the noise source';
+btnReal.addEventListener('click', async () => {
+  if (sourceSignal) {
+    sourceSignal = null; // back to the synthetic seeded source
+    btnReal.classList.remove('active');
+    rerun();
+    return;
+  }
+  btnReal.disabled = true;
+  try {
+    sourceSignal = await loadRecording();
+    btnReal.classList.add('active');
+    rerun();
+  } catch {
+    btnReal.classList.add('failed');
+  } finally {
+    btnReal.disabled = false;
+  }
+});
+el('scenarios').appendChild(btnReal);
 for (const s of SEEDS) {
   const b = document.createElement('button');
   b.textContent = `Traffic mix ${String.fromCharCode(65 + SEEDS.indexOf(s))}`;

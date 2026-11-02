@@ -44,6 +44,11 @@ npm run dev       # http://localhost:5199 (Safari-first)
 - Low-frequency scope (< ~500 Hz) is a physical necessity, not a shortcut.
 - The zone's depth depends on the wavelength — the UI shows where cancellation genuinely fails.
 
+## Credits
+
+- Real traffic recording (optional preset): *"Urban Street on a Rainy Afternoon"* — **CC0 / public domain** via Wikimedia Commons (trimmed, decimated to 16 kHz mono). No attribution required; credited anyway.
+- Models: Meta's **Muse Spark Open** (open weights, via Baseten) and **SAM 3.1** (Meta Model API).
+
 ## Licence
 
 MIT (see LICENSE). Copyright (c) 2026 Eero Ekebom / Don Ton Entertainment Ltd.

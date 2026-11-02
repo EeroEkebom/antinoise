@@ -17,6 +17,8 @@ export type ScenarioConfig = {
   /** Cancel array standoff from the zone, meters (speaker → zone secondary path). Default 5. */
   arrayStandoffMeters?: number;
   taps?: number;
+  /** External road-noise signal at SIM_SAMPLE_RATE (e.g. a real recording, looped). Default: the seeded synthetic source. */
+  sourceSignal?: Float32Array;
 };
 
 export type ScenarioResult = {
@@ -43,11 +45,18 @@ export function runScenario(cfg: ScenarioConfig): ScenarioResult {
   const taps = cfg.taps ?? 64;
   const modelFiberLead = cfg.modelFiberLead ?? true;
 
-  // 1. traffic source
-  const rng: Rng = createRng(cfg.seed);
-  const src = createTrafficSource(rng, sr);
-  const x = new Float32Array(cfg.sampleCount);
-  for (let n = 0; n < cfg.sampleCount; n++) x[n] = src.nextSample();
+  // 1. traffic source: an external signal (e.g. a real recording) tiles the window; default = seeded synthetic
+  let x: Float32Array;
+  if (cfg.sourceSignal && cfg.sourceSignal.length > 0) {
+    x = new Float32Array(cfg.sampleCount);
+    const s = cfg.sourceSignal;
+    for (let n = 0; n < cfg.sampleCount; n++) x[n] = s[n % s.length];
+  } else {
+    const rng: Rng = createRng(cfg.seed);
+    const src = createTrafficSource(rng, sr);
+    x = new Float32Array(cfg.sampleCount);
+    for (let n = 0; n < cfg.sampleCount; n++) x[n] = src.nextSample();
+  }
 
   // 2. reference: road → tower (sound), then fiber to the controller (≈ instant)
   let ref = propagate(x, cfg.towerSeparationMeters, sr).out;
