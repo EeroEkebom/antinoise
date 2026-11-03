@@ -37,7 +37,10 @@ What you simulate is a noise-cancellation system for a road — built like a cha
    at the same moment* — the only difference is what the quiet zone hears. With the field,
    the anti-noise cancels the rumble (~20 dB less). Headphones recommended: the content is deep rumble.
 3. Readouts:
-   - **Zone reduction** — the headline number (how much quieter the zone is with the field).
+   - **Field's reduction (off → on)** — the headline number: how much quieter the zone
+     gets when the field turns on, for the current setup. (Session best = the best such
+     off → on effect so far this session; the *Before/After tuning* pair is field-on on
+     both sides and isolates the assistant's tuning instead.)
    - **Fiber lead** — the milliseconds of pre-arrival information the geometry bought.
    - **Traffic at zone** — how much the traffic has already faded with distance *before* any field:
      loudness falls as you move the zone away; this is separate from cancellation.
