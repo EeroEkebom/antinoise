@@ -126,6 +126,8 @@ button.primary.active { background: #175a52; color: #eafffb; }
 .chip { border-radius: 8px 0 0 8px; border-right: none; background: #24413c; }
 .chip-del { border-radius: 0 8px 8px 0; padding: 9px 10px; background: #24413c; }
 
+button.worse { border-color: var(--danger); color: var(--danger); background: #2a1512; }
+
 button:disabled { opacity: 0.5; cursor: wait; }
 button.mini { padding: 1px 8px; font-size: 0.75rem; }
 

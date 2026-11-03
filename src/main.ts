@@ -516,9 +516,20 @@ function afterAgent(next: ScenarioResult & { geometry: Geometry }): void {
   if (next.geometry.spacingMeters !== undefined) geo.spacingMeters = next.geometry.spacingMeters;
   rerun();
   postAgentResult = next;
-  el('btn-post-agent')!.textContent = `After tuning (${next.reductionDb.toFixed(1)} dB)`;
+  el('btn-post-agent').textContent = `After tuning (${next.reductionDb.toFixed(1)} dB)`;
   if (agentReview) {
-    el('btn-pre-agent')!.textContent = `Before tuning (${agentReview.preResult.reductionDb.toFixed(1)} dB)`;
+    el('btn-pre-agent').textContent = `Before tuning (${agentReview.preResult.reductionDb.toFixed(1)} dB)`;
+    // honesty moment: if the measured result is worse, say so and offer a one-click revert
+    const worse = next.reductionDb < agentReview.preResult.reductionDb - 0.1;
+    el('btn-post-agent').classList.toggle('worse', worse);
+    el('btn-revert-agent').hidden = !worse;
+    if (worse) {
+      agentConsole.log({
+        state: `measured after the change: ${next.reductionDb.toFixed(1)} dB`,
+        decision: 'measured WORSE than before — the model’s idea did not help this setup',
+        applied: 'revert available; nothing is hidden',
+      });
+    }
     if (audio) void toggleAgentStream('post');
   }
 }
@@ -558,8 +569,21 @@ el('btn-discard').addEventListener('click', () => {
   el('agent-ab').hidden = true;
 });
 
-el('btn-pre-agent')!.addEventListener('click', () => toggleAgentStream('pre'));
-el('btn-post-agent')!.addEventListener('click', () => toggleAgentStream('post'));
+el('btn-pre-agent').addEventListener('click', () => toggleAgentStream('pre'));
+el('btn-post-agent').addEventListener('click', () => toggleAgentStream('post'));
+el('btn-revert-agent').addEventListener('click', () => {
+  if (!agentReview) return;
+  geo.towerMeters = agentReview.preGeo.towerMeters;
+  geo.zoneMeters = agentReview.preGeo.zoneMeters;
+  geo.standoffMeters = agentReview.preGeo.standoffMeters;
+  geo.speakers = agentReview.preGeo.speakers;
+  geo.spacingMeters = agentReview.preGeo.spacingMeters;
+  rerun();
+  postAgentResult = null;
+  el('agent-ab').hidden = true;
+  agentConsole.log({ state: 'reverted', decision: 'user reverted the assistant’s change', applied: `${setupLabel(geo)} — back to ${agentReview.preResult.reductionDb.toFixed(1)} dB level tuning` });
+  agentReview = null;
+});
 
 // drag interaction on the field
 const canvas = el<HTMLCanvasElement>('field');
