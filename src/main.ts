@@ -8,6 +8,7 @@ import { proposeTurn, applyDecision } from './brain/loop.js';
 import type { AgentDecision, Brain } from './brain/brain.js';
 import { parseSamBoxes, interpretPlacement, type PlacementProposal } from './brain/placement.js';
 import { createTour } from './ui/tour.js';
+import { createSessionBest, setupLabel } from './ui/sessionBest.js';
 
 const agentConsole = createAgentConsole(el('agent-console'));
 agentConsole.setStatus('idle — brain: muse-spark-open-1026 on Baseten (via /api/brain proxy)', false);
@@ -42,6 +43,85 @@ function banner(msg: string | null): void {
   el('listen').classList.toggle('invalid', !!msg);
 }
 
+// session-best tracker + setup library (localStorage = this viewer's browser only)
+const sessionBest = createSessionBest();
+type SavedSetup = { name: string; geometry: Geometry; note: string };
+const LS_KEY = 'antinoise.setups.v1';
+function loadSetups(): SavedSetup[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? (JSON.parse(raw) as SavedSetup[]) : [];
+  } catch {
+    return [];
+  }
+}
+function persistSetups(list: SavedSetup[]): void {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(list));
+  } catch {
+    // private mode / storage blocked → setups live only this session
+  }
+}
+let setups = loadSetups();
+
+function renderSetups(): void {
+  const wrap = el('setups');
+  wrap.innerHTML = '';
+  for (const s of setups) {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.title = `${s.note} · ${setupLabel(s.geometry)} — click to load`;
+    chip.textContent = `★ ${s.name}`;
+    chip.addEventListener('click', () => {
+      geo.towerMeters = s.geometry.towerMeters;
+      geo.zoneMeters = s.geometry.zoneMeters;
+      geo.standoffMeters = s.geometry.standoffMeters;
+      geo.speakers = s.geometry.speakers;
+      geo.spacingMeters = s.geometry.spacingMeters;
+      rerun();
+      agentConsole.log({ state: 'saved setup loaded', decision: s.name, applied: setupLabel(s.geometry) });
+    });
+    const del = document.createElement('button');
+    del.className = 'chip-del';
+    del.textContent = '×';
+    del.title = 'delete this saved setup';
+    del.addEventListener('click', () => {
+      setups = setups.filter((x) => x !== s);
+      persistSetups(setups);
+      renderSetups();
+    });
+    const pair = document.createElement('span');
+    pair.className = 'chip-pair';
+    pair.appendChild(chip);
+    pair.appendChild(del);
+    wrap.appendChild(pair);
+  }
+}
+el('btn-save-setup').addEventListener('click', () => {
+  const name = el<HTMLInputElement>('setup-name').value.trim() || `setup ${setups.length + 1}`;
+  const best = sessionBest.current();
+  const note = best && Math.abs(best.db - (result?.reductionDb ?? 0)) < 0.05 ? 'this was the session best' : 'user-saved';
+  setups.push({ name, geometry: { ...geo, spacingMeters: geo.spacingMeters }, note });
+  persistSetups(setups);
+  el<HTMLInputElement>('setup-name').value = '';
+  renderSetups();
+  agentConsole.log({ state: 'setup saved', decision: name, applied: setupLabel(geo) });
+  el('setups-saver').hidden = false;
+  void best;
+});
+
+el('btn-best').addEventListener('click', () => {
+  const bestGeo = sessionBest.restore();
+  if (!bestGeo) return;
+  geo.towerMeters = bestGeo.towerMeters;
+  geo.zoneMeters = bestGeo.zoneMeters;
+  geo.standoffMeters = bestGeo.standoffMeters;
+  geo.speakers = bestGeo.speakers;
+  geo.spacingMeters = bestGeo.spacingMeters;
+  rerun();
+  agentConsole.log({ state: 'returned to session best', decision: 'go to best', applied: setupLabel(geo) });
+});
+
 function applyTrafficLevel(): void {
   if (!audio) return;
   audio.gainOpen.gain.setTargetAtTime(0.9 * geo.trafficLevel, audio.ctx.currentTime, 0.05);
@@ -71,6 +151,12 @@ function rerun(): void {
   el('v-geo').textContent = `towers ${geo.towerMeters.toFixed(0)} m · zone ${geo.zoneMeters.toFixed(0)} m · array ${geo.standoffMeters.toFixed(1)} m · ${geo.speakers} nodes @ ${geo.spacingMeters ?? 4} m`;
   if (audio) void rebuildAudioLoops(result);
   draw();
+
+  // session-best tracker (skips infeasible-throw configs, which never reach here)
+  sessionBest.consider(result.reductionDb, geo);
+  el('v-best').textContent = sessionBest.current()?.db.toFixed(1) + ' dB';
+  el('btn-best').hidden = false;
+  el('setups-saver').hidden = false;
 }
 
 function rebuildAudioLoops(r: ScenarioResult): Promise<void> {

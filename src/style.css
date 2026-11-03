@@ -109,6 +109,10 @@ button.primary.active { background: #175a52; color: #eafffb; }
 .review-row input[type=checkbox] { accent-color: var(--accent); }
 .review-row .new { color: var(--accent); }
 
+.chip-pair { display: inline-flex; }
+.chip { border-radius: 8px 0 0 8px; border-right: none; background: #24413c; }
+.chip-del { border-radius: 0 8px 8px 0; padding: 9px 10px; background: #24413c; }
+
 button:disabled { opacity: 0.5; cursor: wait; }
 button.mini { padding: 1px 8px; font-size: 0.75rem; }
 
