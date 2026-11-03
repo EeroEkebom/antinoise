@@ -78,8 +78,16 @@ function renderSetups(): void {
       geo.standoffMeters = s.geometry.standoffMeters;
       geo.speakers = s.geometry.speakers;
       geo.spacingMeters = s.geometry.spacingMeters;
+      if (s.geometry.trafficLevel !== undefined) {
+        geo.trafficLevel = s.geometry.trafficLevel;
+        for (const c of el('traffic').children) {
+          const cb = c as HTMLButtonElement;
+          cb.classList.toggle('active', Number(cb.dataset.level) === geo.trafficLevel);
+        }
+        applyTrafficLevel();
+      }
       rerun();
-      agentConsole.log({ state: 'saved setup loaded', decision: s.name, applied: setupLabel(s.geometry) });
+      agentConsole.log({ state: 'saved setup loaded', decision: s.name, applied: `${setupLabel(s.geometry)} @ ${geo.trafficLevel}× level` });
     });
     const del = document.createElement('button');
     del.className = 'chip-del';
@@ -99,15 +107,14 @@ function renderSetups(): void {
 }
 el('btn-save-setup').addEventListener('click', () => {
   const name = el<HTMLInputElement>('setup-name').value.trim() || `setup ${setups.length + 1}`;
-  const best = sessionBest.current();
-  const note = best && Math.abs(best.db - (result?.reductionDb ?? 0)) < 0.05 ? 'this was the session best' : 'user-saved';
-  setups.push({ name, geometry: { ...geo, spacingMeters: geo.spacingMeters }, note });
+  const note = result && sessionBest.current() && Math.abs((sessionBest.current()?.db ?? 0) - result.reductionDb) < 0.05
+    ? 'this was the session best'
+    : 'user-saved';
+  setups.push({ name, geometry: { ...geo, spacingMeters: geo.spacingMeters, trafficLevel: geo.trafficLevel }, note });
   persistSetups(setups);
   el<HTMLInputElement>('setup-name').value = '';
   renderSetups();
   agentConsole.log({ state: 'setup saved', decision: name, applied: setupLabel(geo) });
-  el('setups-saver').hidden = false;
-  void best;
 });
 
 el('btn-best').addEventListener('click', () => {

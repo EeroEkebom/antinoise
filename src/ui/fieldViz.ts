@@ -128,9 +128,19 @@ export function renderField(
   for (const off of nodeOffsets(geo)) {
     const nodeY = corridorY + off * yScale;
     const half = lam * 0.75 * yScale;
-    c2d.fillStyle = 'rgba(79,209,197,0.10)';
+    c2d.fillStyle = 'rgba(79,209,197,0.12)';
     c2d.fillRect(speakerX, nodeY - half, w - speakerX, half * 2);
   }
+  // union outline + width number — the node/spacing effect, measurable at a glance
+  const unionHalf = ((spacingOf(geo) * (geo.speakers - 1)) / 2 + lam * 0.75) * yScale;
+  c2d.strokeStyle = 'rgba(79,209,197,0.7)';
+  c2d.lineWidth = 1.5;
+  c2d.strokeRect(speakerX, corridorY - unionHalf, w - speakerX, unionHalf * 2);
+  c2d.lineWidth = 1;
+  c2d.fillStyle = 'rgba(79,209,197,0.9)';
+  c2d.font = '11px sans-serif';
+  const bandWm = spacingOf(geo) * (geo.speakers - 1) + lam * 1.5;
+  c2d.fillText(`quiet band ≈ ${bandWm.toFixed(1)} m (${geo.speakers} node${geo.speakers > 1 ? 's' : ''} @ ${spacingOf(geo).toFixed(0)} m)`, speakerX + 8, corridorY - unionHalf - 6);
   for (const off of nodeOffsets(geo)) {
     marker(speakerX, corridorY + off * yScale, 'Array', '#4fd1c5', opts.highlight === 'speaker', off >= 0);
   }

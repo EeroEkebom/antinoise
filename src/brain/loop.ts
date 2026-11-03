@@ -32,8 +32,8 @@ export async function proposeTurn(
   con: AgentConsole,
 ): Promise<Proposal> {
   const pkt = packet(geo, result);
+  con.startThinking(); // visible "thinking… N s" while the brain works — BEFORE the call, not after
   const decision = await brain.propose(pkt);
-  con.startThinking(); // visible "thinking… N s" while the brain works
   if (decision.kind === 'unavailable') {
     con.stopThinking('idle');
     con.log({
