@@ -529,15 +529,15 @@ el('btn-apply-sel').addEventListener('click', async () => {
   const only = checkedParams();
   const next = only.includes('mu') && !only.some((p) => PARAM_LABELS.some(([k]) => k === p))
     ? null
-    : await applyDecision(geo, result, agentReview.decision, agentConsole, { only: only.filter((p) => p !== 'mu') as never });
+    : await applyDecision(geo, result, agentReview.decision, agentConsole, { only: only.filter((p) => p !== 'mu') as never, sourceSignal: sourceSignal ?? undefined });
   // μ-only selection can't rerun the scenario — fold it in as an all-apply lite
-  const nextFinal = next ?? (await applyDecision(geo, result, agentReview.decision, agentConsole));
+  const nextFinal = next ?? (await applyDecision(geo, result, agentReview.decision, agentConsole, { sourceSignal: sourceSignal ?? undefined }));
   afterAgent(nextFinal);
 });
 
 el('btn-apply-all').addEventListener('click', async () => {
   if (!agentReview || !result) return;
-  const next = await applyDecision(geo, result, agentReview.decision, agentConsole);
+  const next = await applyDecision(geo, result, agentReview.decision, agentConsole, { sourceSignal: sourceSignal ?? undefined });
   afterAgent(next);
 });
 

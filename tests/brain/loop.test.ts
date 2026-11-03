@@ -67,6 +67,30 @@ describe('propose → review → apply flow', () => {
     expect(next.geometry).toEqual({ ...GEO, speakers: 3, standoffMeters: 3, towerMeters: 22 });
   });
 
+  test('applyDecision threads the active sourceSignal into the re-measure (no silent source swap)', async () => {
+    // distinctive 50 Hz source, amplitude 0.9 — very different from the synthetic bed
+    const sig = new Float32Array(720000);
+    for (let i = 0; i < sig.length; i++) sig[i] = Math.sin((2 * Math.PI * 50 * i) / 16000) * 0.9;
+    const decision = {
+      kind: 'apply' as const,
+      geometry: { ...GEO, speakers: 3 },
+      mu: 0.08,
+      note: 'n',
+    };
+    const con = createAgentConsole(host());
+    const next = await applyDecision(
+      GEO,
+      { openLoop: new Float32Array(4), closedLoop: new Float32Array(4), reductionDb: 10 },
+      decision,
+      con,
+      { sourceSignal: sig },
+    );
+    // the open-loop zone noise must be the PROVIDED signal propagated to 30 m (gain 0.25)
+    const rms = (x: Float32Array) => Math.sqrt(x.reduce((s, v) => s + v * v, 0) / x.length);
+    expect(next.reductionDb).toBeGreaterThan(0);
+    expect(rms(next.openLoop.subarray(16000)) / rms(sig.subarray(0, 176000))).toBeCloseTo(0.25, 1);
+  });
+
   test('unavailable decision → proposeTurn surfaces the reason; applyDecision rejects the call cleanly', async () => {
     const brain = fakeBrain({ kind: 'unavailable', reason: 'budget' });
     const con = createAgentConsole(host());

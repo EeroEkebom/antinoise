@@ -56,7 +56,7 @@ export async function applyDecision(
   result: ScenarioResult,
   decision: Extract<AgentDecision, { kind: 'apply' }>,
   con: AgentConsole,
-  opts: { only?: (typeof PARAMS)[number][] } = {},
+  opts: { only?: (typeof PARAMS)[number][]; sourceSignal?: Float32Array } = {},
 ): Promise<AgentTurnResult> {
   con.setStatus('applying', true);
   const nextGeo: Geometry = { ...geo, ...decision.geometry };
@@ -76,6 +76,7 @@ export async function applyDecision(
   }
   const cfg = geometryToScenarioConfig(nextGeo, { seed: 42, sampleCount: 160000 });
   if (decision.mu !== undefined) cfg.mu = Math.max(0.001, Math.min(0.3, decision.mu));
+  if (opts.sourceSignal) cfg.sourceSignal = opts.sourceSignal; // keep the active recording — never silently swap sources
   const next = runScenario(cfg);
   if (opts.only?.length) {
     con.log({
