@@ -27,8 +27,7 @@ let audio: Audio | null = null;
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 let seed = SEEDS[0];
 let freqHz = 100;
-let sourceSignal: Float32Array | null = null; // the CC0 real-recording preset's decoded 16 kHz signal
-let cachedRecording: Float32Array | null = null;
+let sourceSignal: Float32Array | null = null; // active external recording (16 kHz sim signal), or null = synthetic
 let result: ScenarioResult | null = null;
 let dragging: Marker | null = null;
 
@@ -152,11 +151,18 @@ el('btn-stop').addEventListener('click', () => {
 });
 
 // traffic mix picker
-async function loadRecording(): Promise<Float32Array> {
-  if (cachedRecording) return cachedRecording;
-  const res = await fetch('/audio/traffic-cc0-45s.wav');
+const REAL_SOURCES: { file: string; label: string; note: string }[] = [
+  { file: 'traffic-city-highway', label: 'City highway', note: 'CC0 · sotiris_laskaris (Freesound #563698)' },
+  { file: 'traffic-motorway-m6', label: 'Motorway M6', note: 'CC0 · JW_audio (Freesound #826246)' },
+  { file: 'traffic-us-hwy64-wet', label: 'US highway (wet)', note: 'CC0 · reg7783 (Freesound #632640)' },
+];
+const recordingCache = new Map<string, Float32Array>();
+
+async function loadRecording(file: string): Promise<Float32Array> {
+  const hit = recordingCache.get(file);
+  if (hit) return hit;
+  const res = await fetch(`/audio/${file}.wav`);
   const ab = await res.arrayBuffer();
-  // decode + resample to the sim rate (the WAV itself is 16 kHz)
   const probe = new AudioContext();
   const decoded = await probe.decodeAudioData(ab);
   void probe.close();
@@ -166,31 +172,41 @@ async function loadRecording(): Promise<Float32Array> {
   s.connect(off.destination);
   s.start();
   const rendered = await off.startRendering();
-  cachedRecording = rendered.getChannelData(0).slice();
-  return cachedRecording;
+  const sig = rendered.getChannelData(0).slice();
+  recordingCache.set(file, sig);
+  return sig;
 }
-const btnReal = document.createElement('button');
-btnReal.textContent = 'Real recording (CC0)';
-btnReal.title = 'Real urban traffic recording (public domain, Wikimedia Commons); toggles the noise source';
-btnReal.addEventListener('click', async () => {
-  if (sourceSignal) {
-    sourceSignal = null; // back to the synthetic seeded source
-    btnReal.classList.remove('active');
-    rerun();
-    return;
-  }
-  btnReal.disabled = true;
-  try {
-    sourceSignal = await loadRecording();
-    btnReal.classList.add('active');
-    rerun();
-  } catch {
-    btnReal.classList.add('failed');
-  } finally {
-    btnReal.disabled = false;
-  }
+const btnSynthetic = document.createElement('button');
+btnSynthetic.textContent = 'Synthetic traffic';
+btnSynthetic.classList.add('active');
+btnSynthetic.title = 'The seeded synthetic source (the test bed)';
+btnSynthetic.addEventListener('click', () => {
+  sourceSignal = null;
+  recordingNote = '';
+  el('traffic-note').textContent = 'Source: the seeded synthetic traffic (the test bed — fully reproducible).';
+  for (const c of el('scenarios').children) c.classList.toggle('active', c === btnSynthetic);
+  rerun();
 });
-el('scenarios').appendChild(btnReal);
+el('scenarios').appendChild(btnSynthetic);
+for (const rs of REAL_SOURCES) {
+  const b = document.createElement('button');
+  b.textContent = `Real: ${rs.label}`;
+  b.title = `${rs.note} — real recordings, CC0 / public domain`;
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    try {
+      sourceSignal = await loadRecording(rs.file);
+      el('traffic-note').textContent = `Source: real recording — ${rs.note}.`;
+      for (const c of el('scenarios').children) c.classList.toggle('active', c === b);
+      rerun();
+    } catch {
+      b.classList.add('failed');
+    } finally {
+      b.disabled = false;
+    }
+  });
+  el('scenarios').appendChild(b);
+}
 for (const s of SEEDS) {
   const b = document.createElement('button');
   b.textContent = `Traffic mix ${String.fromCharCode(65 + SEEDS.indexOf(s))}`;
