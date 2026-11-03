@@ -133,6 +133,19 @@ button.mini { padding: 1px 8px; font-size: 0.75rem; }
 
 #photo .hint { white-space: normal; }
 
+/* uploaded/pasted street photo, shown above the placement box — readable but not dominant */
+#photo-preview {
+  display: block;
+  margin: 10px 0 12px;
+  max-width: min(320px, 100%);
+  max-height: 190px;
+  width: auto;
+  height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--surface-2);
+}
+#photo-preview[hidden] { display: none; }
+
 .legend { justify-content: flex-start; }
 .legend-item { color: var(--text-dim); font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }

@@ -402,8 +402,23 @@ for (const f of [63, 100, 250, 630]) {
 
 // photo → SAM 3.1 → placement proposal (user confirms before applying)
 const EXAMPLE_PHOTO = 'https://upload.wikimedia.org/wikipedia/commons/9/9b/Traffic_jam_Sao_Paulo_09_2006_30a.jpg';
+// photo preview: the uploaded/pasted photo shows above the placement box, suitably sized
+const previewEl = el<HTMLImageElement>('photo-preview');
+previewEl.addEventListener('error', () => { previewEl.hidden = true; });
+function syncPhotoPreview(): void {
+  const url = el<HTMLInputElement>('photo-url').value.trim();
+  if (!url) {
+    previewEl.hidden = true;
+    previewEl.src = '';
+    return;
+  }
+  if (previewEl.src !== url) previewEl.src = url;
+  previewEl.hidden = false; // broken URL hides itself via the error listener
+}
+el('photo-url').addEventListener('input', syncPhotoPreview);
 el('btn-example').addEventListener('click', () => {
   el<HTMLInputElement>('photo-url').value = EXAMPLE_PHOTO;
+  syncPhotoPreview();
 });
 let proposal: PlacementProposal | null = null;
 el('btn-seg').addEventListener('click', async () => {
