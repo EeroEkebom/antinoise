@@ -4,7 +4,7 @@ import { createBasetenRoute } from '../brain/baseten.js';
 import type { AgentState } from '../brain/brain.js';
 import { runScenario } from '../core/scenario.js';
 import { leadMs, type Geometry } from '../ui/geometry.js';
-import { zoneDepthDb } from '../ui/fieldViz.js';
+import { zoneDepthDb, quietBandMeters } from '../ui/fieldViz.js';
 
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 const result = runScenario({ seed: 42, towerSeparationMeters: 20, zoneSeparationMeters: 30, sampleCount: 160000, mu: 0.05 });
@@ -14,6 +14,9 @@ const state: AgentState = {
   leadMs: leadMs(geo),
   geometry: geo,
   zoneDepth: [63, 100, 250, 630].map((f) => ({ freqHz: f, depthDb: zoneDepthDb(geo, 20, f) })),
+  goal: (process.argv[2] === 'area' ? 'area' : 'depth'), // `npm run brain-smoke area` exercises the wide-band goal
+  bandMeters: quietBandMeters(geo, 100),
+  memory: [],
 };
 
 let key = process.env.BASETEN_API_KEY ?? '';

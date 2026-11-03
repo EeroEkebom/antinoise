@@ -2,13 +2,14 @@ import './style.css';
 import { runScenario, type ScenarioConfig, type ScenarioResult } from './core/scenario.js';
 import { prepareAudioBuffers } from './audio/bridge.js';
 import { validateGeometry, geometryToScenarioConfig, leadMs, type Geometry } from './ui/geometry.js';
-import { renderField, hitTest, pxToMeters, type Marker } from './ui/fieldViz.js';
+import { renderField, hitTest, pxToMeters, quietBandMeters, type Marker } from './ui/fieldViz.js';
 import { createAgentConsole } from './ui/agentConsole.js';
 import { proposeTurn, applyDecision } from './brain/loop.js';
-import type { AgentDecision, Brain } from './brain/brain.js';
+import type { AgentDecision, AgentGoal, Brain } from './brain/brain.js';
 import { parseSamBoxes, interpretPlacement, type PlacementProposal } from './brain/placement.js';
 import { createTour } from './ui/tour.js';
 import { createSessionBest, setupLabel } from './ui/sessionBest.js';
+import { createAgentMemory } from './ui/agentMemory.js';
 
 const agentConsole = createAgentConsole(el('agent-console'));
 agentConsole.setStatus('idle — brain: muse-spark-open-1026 on Baseten (via /api/brain proxy)', false);
@@ -45,6 +46,10 @@ function banner(msg: string | null): void {
 
 // session-best tracker + setup library (localStorage = this viewer's browser only)
 const sessionBest = createSessionBest();
+// the agent's own memory: accepted turns + measured outcomes, feeds future suggestions (localStorage)
+const agentMemory = createAgentMemory();
+// optimization goal for the assistant: 'depth' (default, point dB) or 'area' (quiet band width)
+let agentGoal: AgentGoal = 'depth';
 type SavedSetup = { name: string; geometry: Geometry; note: string };
 const LS_KEY = 'antinoise.setups.v1';
 function loadSetups(): SavedSetup[] {
@@ -489,6 +494,26 @@ type AgentReview = {
 let agentReview: AgentReview | null = null;
 let postAgentResult: (ScenarioResult & { geometry: Geometry }) | null = null;
 
+// goal chips: the assistant's objective — deepest dB (default) or widest quiet band
+function updateGoalChips(): void {
+  el('goal-depth').classList.toggle('active', agentGoal === 'depth');
+  el('goal-area').classList.toggle('active', agentGoal === 'area');
+}
+el('goal-depth').addEventListener('click', () => { agentGoal = 'depth'; updateGoalChips(); });
+el('goal-area').addEventListener('click', () => { agentGoal = 'area'; updateGoalChips(); });
+
+// the agent's memory line: count + clear (persists in this browser across refreshes; never auto-wiped)
+function updateMemoryLine(): void {
+  el('agent-memory-line').hidden = agentMemory.count() === 0;
+  el('agent-memory-count').textContent = String(agentMemory.count());
+}
+el('btn-memory-clear').addEventListener('click', () => {
+  agentMemory.clear();
+  updateMemoryLine();
+  agentConsole.log({ state: '—', decision: 'cleared the agent memory', applied: 'no lessons on file' });
+});
+if (agentMemory.count() > 0) updateMemoryLine(); // lessons from earlier this session
+
 el('btn-agent').addEventListener('click', async () => {
   const btn = el<HTMLButtonElement>('btn-agent');
   btn.disabled = true;
@@ -503,7 +528,10 @@ el('btn-agent').addEventListener('click', async () => {
   try {
     const r: ScenarioResult | null = result;
     if (!r) return;
-    const review = await proposeTurn(proxyBrain, geo, r, agentConsole);
+    const review = await proposeTurn(proxyBrain, geo, r, agentConsole, {
+      goal: agentGoal,
+      memory: agentMemory.precedents(),
+    });
     clearInterval(t);
     if (review.decision.kind === 'unavailable') {
       tickEl.textContent = 'No usable suggestion this time — the model explained why (see the trail below).';
@@ -569,17 +597,39 @@ function afterAgent(next: ScenarioResult & { geometry: Geometry }): void {
   el('btn-post-agent').textContent = `After tuning (${next.reductionDb.toFixed(1)} dB)`;
   if (agentReview) {
     el('btn-pre-agent').textContent = `Before tuning (${agentReview.preResult.reductionDb.toFixed(1)} dB)`;
-    // honesty moment: if the measured result is worse, say so and offer a one-click revert
-    const worse = next.reductionDb < agentReview.preResult.reductionDb - 0.1;
+    // honesty moment: if the measured result is worse on the chosen goal's metric, say so and offer a revert
+    const nextBand = quietBandMeters(next.geometry, freqHz);
+    const preBand = quietBandMeters(agentReview.preGeo, freqHz);
+    const metric = agentGoal === 'area' ? 'band' : 'dB';
+    const before = agentGoal === 'area' ? preBand : agentReview.preResult.reductionDb;
+    const after = agentGoal === 'area' ? nextBand : next.reductionDb;
+    const worse = after < before - 0.1;
+    el('btn-post-agent').textContent = `After tuning (${next.reductionDb.toFixed(1)} dB · band ${nextBand.toFixed(1)} m)`;
     el('btn-post-agent').classList.toggle('worse', worse);
     el('btn-revert-agent').hidden = !worse;
     if (worse) {
       agentConsole.log({
-        state: `measured after the change: ${next.reductionDb.toFixed(1)} dB`,
-        decision: 'measured WORSE than before — the model’s idea did not help this setup',
+        state: `measured after the change: ${next.reductionDb.toFixed(1)} dB · band ${nextBand.toFixed(1)} m`,
+        decision: `measured WORSE on the goal's metric (${metric}) — the model's idea did not help this setup`,
         applied: 'revert available; nothing is hidden',
       });
     }
+    // the agent files every accepted, re-measured turn — its memory for future suggestions
+    agentMemory.record({
+      goal: agentGoal,
+      source: sourceKey,
+      geometry: { ...next.geometry },
+      mu: agentReview.decision.mu,
+      measuredDb: next.reductionDb,
+      bandMeters: nextBand,
+      note: agentReview.decision.note,
+    });
+    updateMemoryLine();
+    agentConsole.log({
+      state: `goal: ${agentGoal} · ${next.reductionDb.toFixed(1)} dB · band ${nextBand.toFixed(1)} m`,
+      decision: 'filed to memory — future suggestions get this outcome as a precedent',
+      applied: `${agentMemory.count()} lesson${agentMemory.count() === 1 ? '' : 's'} on file`,
+    });
     if (audio) void toggleAgentStream('post');
   }
 }
@@ -600,15 +650,15 @@ el('btn-apply-sel').addEventListener('click', async () => {
   const only = checkedParams();
   const next = only.includes('mu') && !only.some((p) => PARAM_LABELS.some(([k]) => k === p))
     ? null
-    : await applyDecision(geo, result, agentReview.decision, agentConsole, { only: only.filter((p) => p !== 'mu') as never, sourceSignal: sourceSignal ?? undefined });
+    : await applyDecision(geo, result, agentReview.decision, agentConsole, { only: only.filter((p) => p !== 'mu') as never, sourceSignal: sourceSignal ?? undefined, bandFreqHz: freqHz });
   // μ-only selection can't rerun the scenario — fold it in as an all-apply lite
-  const nextFinal = next ?? (await applyDecision(geo, result, agentReview.decision, agentConsole, { sourceSignal: sourceSignal ?? undefined }));
+  const nextFinal = next ?? (await applyDecision(geo, result, agentReview.decision, agentConsole, { sourceSignal: sourceSignal ?? undefined, bandFreqHz: freqHz }));
   afterAgent(nextFinal);
 });
 
 el('btn-apply-all').addEventListener('click', async () => {
   if (!agentReview || !result) return;
-  const next = await applyDecision(geo, result, agentReview.decision, agentConsole, { sourceSignal: sourceSignal ?? undefined });
+  const next = await applyDecision(geo, result, agentReview.decision, agentConsole, { sourceSignal: sourceSignal ?? undefined, bandFreqHz: freqHz });
   afterAgent(next);
 });
 

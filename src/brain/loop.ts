@@ -1,15 +1,18 @@
 import { runScenario, type ScenarioResult } from '../core/scenario.js';
 import { leadMs, geometryToScenarioConfig, WORLD_HEIGHT_M, type Geometry } from '../ui/geometry.js';
-import { zoneDepthDb } from '../ui/fieldViz.js';
-import type { AgentDecision, AgentState, Brain } from './brain.js';
+import { zoneDepthDb, quietBandMeters } from '../ui/fieldViz.js';
+import type { AgentDecision, AgentGoal, AgentState, Brain } from './brain.js';
 import type { AgentConsole } from '../ui/agentConsole.js';
 
 export type AgentTurnResult = ScenarioResult & { geometry: Geometry };
 
 const DEFAULT_SPACING = 4;
 
+/** Per-turn context outside the sim: the optimization goal and the agent's remembered precedents. */
+export type AgentTurnContext = { goal: AgentGoal; memory: string[] };
+
 /** The live-truth state packet — sim numbers only, never personal data. */
-export function packet(geo: Geometry, result: ScenarioResult): AgentState {
+export function packet(geo: Geometry, result: ScenarioResult, ctx: AgentTurnContext): AgentState {
   return {
     reductionDb: result.reductionDb,
     leadMs: leadMs(geo),
@@ -18,6 +21,9 @@ export function packet(geo: Geometry, result: ScenarioResult): AgentState {
       freqHz: f,
       depthDb: zoneDepthDb(geo, WORLD_HEIGHT_M / 2, f),
     })),
+    goal: ctx.goal,
+    bandMeters: quietBandMeters(geo, 100),
+    memory: ctx.memory,
   };
 }
 
@@ -30,8 +36,9 @@ export async function proposeTurn(
   geo: Geometry,
   result: ScenarioResult,
   con: AgentConsole,
+  ctx: AgentTurnContext,
 ): Promise<Proposal> {
-  const pkt = packet(geo, result);
+  const pkt = packet(geo, result, ctx);
   con.startThinking(); // visible "thinking… N s" while the brain works — BEFORE the call, not after
   const decision = await brain.propose(pkt);
   if (decision.kind === 'unavailable') {
@@ -56,10 +63,11 @@ export async function applyDecision(
   result: ScenarioResult,
   decision: Extract<AgentDecision, { kind: 'apply' }>,
   con: AgentConsole,
-  opts: { only?: (typeof PARAMS)[number][]; sourceSignal?: Float32Array } = {},
+  opts: { only?: (typeof PARAMS)[number][]; sourceSignal?: Float32Array; bandFreqHz?: number } = {},
 ): Promise<AgentTurnResult> {
   con.setStatus('applying', true);
   const nextGeo: Geometry = { ...geo, ...decision.geometry };
+  const bandText = (g: Geometry): string => ` · band ${quietBandMeters(g, opts.bandFreqHz ?? 100).toFixed(1)} m`;
   if (opts.only?.length) {
     for (const k of PARAMS) {
       if (!opts.only.includes(k) || nextGeo[k] === geo[k]) {
@@ -80,7 +88,7 @@ export async function applyDecision(
   const next = runScenario(cfg);
   if (opts.only?.length) {
     con.log({
-      state: `after: ${next.reductionDb.toFixed(1)} dB · lead ${leadMs(nextGeo).toFixed(0)} ms`,
+      state: `after: ${next.reductionDb.toFixed(1)} dB${bandText(nextGeo)} · lead ${leadMs(nextGeo).toFixed(0)} ms`,
       decision: 're-measured your accepted changes',
       applied: decision.mu !== undefined ? `μ → ${fmt(decision.mu)}` : 'field updated',
     });
@@ -94,7 +102,7 @@ export async function applyDecision(
     if ((nextGeo.spacingMeters ?? DEFAULT_SPACING) !== (geo.spacingMeters ?? DEFAULT_SPACING))
       diffs.push(`spacing ${fmtU(geo.spacingMeters)} → ${fmtU(nextGeo.spacingMeters)} m`);
     con.log({
-      state: `after: ${next.reductionDb.toFixed(1)} dB · lead ${leadMs(nextGeo).toFixed(0)} ms`,
+      state: `after: ${next.reductionDb.toFixed(1)} dB${bandText(nextGeo)} · lead ${leadMs(nextGeo).toFixed(0)} ms`,
       decision: 'measured after the change',
       applied: diffs.length > 0 ? diffs.join(' · ') : 'no parameter change',
     });
@@ -109,8 +117,9 @@ export async function runAgentTurn(
   geo: Geometry,
   result: ScenarioResult,
   con: AgentConsole,
+  ctx: AgentTurnContext,
 ): Promise<AgentTurnResult> {
-  const { decision } = await proposeTurn(brain, geo, result, con);
+  const { decision } = await proposeTurn(brain, geo, result, con, ctx);
   if (decision.kind === 'unavailable') {
     return { ...result, geometry: geo };
   }

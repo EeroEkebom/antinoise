@@ -17,8 +17,11 @@ was built during the building period (first commit is the scaffold below).
 - **The commissioning agent** (`src/brain/`): Meta's open-weights **Muse Spark Open**
   (`meta-models/muse-spark-open-1026`) on Baseten reads the live field state and proposes physical
   parameter changes (tower distance, array nodes, standoff, adaptation rate) — every proposal is validated
-  against feasibility physics before it is applied and re-measured on screen. **SAM 3.1** (Meta Model API)
-  proposes placement from a street photo.
+  against feasibility physics before it is applied and re-measured on screen. It has two selectable goals —
+  **deepest dB** or **widest quiet band** (the area objective trades a little depth for width, by its own
+  admission in the note) — and an **agent memory**: every accepted, re-measured turn is filed locally and
+  fed to later turns as measured precedents (a memory protocol, not weight tuning). **SAM 3.1** (Meta Model
+  API) proposes placement from a street photo.
 - **Audio + field UI** (`src/audio/`, `src/ui/`): audible A/B (traffic vs. quiet zone), interactive field map
   with drag markers, per-frequency wave view with cross-section, live dB readouts.
 
@@ -33,7 +36,7 @@ never automated.
 
 ```bash
 npm install
-npm test          # vitest — 56 tests, all green at freeze
+npm test          # vitest — 92 tests, all green at freeze
 npm run numbers   # headline physics numbers (reduction dB, fiber-lead advantage)
 npm run dev       # http://localhost:5199 (Safari-first)
 ```

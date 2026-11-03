@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from 'vitest';
-import { createBasetenRoute } from '../../src/brain/baseten.js';
+import { createBasetenRoute, systemPrompt } from '../../src/brain/baseten.js';
 import type { AgentState } from '../../src/brain/brain.js';
 
 const SAMPLE_STATE: AgentState = {
@@ -13,6 +13,9 @@ const SAMPLE_STATE: AgentState = {
     { freqHz: 250, depthDb: -3.0 },
     { freqHz: 630, depthDb: -1.2 },
   ],
+  goal: 'depth',
+  bandMeters: 5.2,
+  memory: [],
 };
 
 const VALID_REPLY = {
@@ -97,5 +100,28 @@ describe('BasetenRoute', () => {
     const reason = d.kind === 'unavailable' ? d.reason : '';
     expect(reason).not.toContain('b10_SECRET');
     expect(reason).toContain('<redacted>');
+  });
+});
+describe('systemPrompt (goal-aware)', () => {
+  test('depth goal: targets the measured point dB; band width is context only', () => {
+    const p = systemPrompt('depth');
+    expect(p).toContain('reductionDb');
+    expect(p).toContain('context, not the target');
+    expect(p).not.toContain('MAY accept a reductionDb drop');
+  });
+
+  test('area goal: targets band width, allows a small dB trade, still bans fake dB claims', () => {
+    const p = systemPrompt('area');
+    expect(p).toContain('bandMeters');
+    expect(p).toContain('under ~3 dB');
+    expect(p).toContain('never promise measured-dB gains'); // honesty survives the goal switch
+  });
+
+  test('both goals keep the memory-protocol line and the honest stand-down rule', () => {
+    for (const goal of ['depth', 'area'] as const) {
+      const p = systemPrompt(goal);
+      expect(p).toContain('memory');
+      expect(p).toContain('Be honest');
+    }
   });
 });

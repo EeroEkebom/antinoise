@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from 'vitest';
-import { runAgentTurn, proposeTurn, applyDecision } from '../../src/brain/loop.js';
+import { runAgentTurn, proposeTurn, applyDecision, type AgentTurnContext } from '../../src/brain/loop.js';
 import { createAgentConsole } from '../../src/ui/agentConsole.js';
 import type { AgentDecision, AgentState, Brain } from '../../src/brain/brain.js';
 import { CONFIG } from '../../src/core/rng.js';
+import { quietBandMeters } from '../../src/ui/fieldViz.js';
 
 const GEO = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 
@@ -11,11 +12,24 @@ function fakeBrain(decision: AgentDecision): Brain {
   return { propose: async (_s: AgentState) => decision };
 }
 
+
+const CTX: AgentTurnContext = { goal: 'depth', memory: [] };
+
 function host(): HTMLElement {
   return document.createElement('div');
 }
 
 describe('propose → review → apply flow', () => {
+  test('area goal + remembered precedents ride through to the state packet, band matches node count', async () => {
+    const con = createAgentConsole(host());
+    const prop = await proposeTurn(fakeBrain({ kind: 'unavailable', reason: 'x' }), { ...GEO, speakers: 3 },
+      { openLoop: new Float32Array(4), closedLoop: new Float32Array(4), reductionDb: 10 },
+      con, { goal: 'area', memory: ['goal: area · synthetic · tower 20m zone 30m standoff 5m 5 nodes · 20.2 dB · band 12.0 m'] });
+    expect(prop.packet.goal).toBe('area');
+    expect(prop.packet.memory).toHaveLength(1);
+    expect(prop.packet.bandMeters).toBeGreaterThan(quietBandMeters(GEO, 100)); // 3 nodes → wider than 1
+  });
+
   test('proposeTurn returns the decision WITHOUT changing anything', async () => {
     const brain = fakeBrain({
       kind: 'apply',
@@ -25,9 +39,12 @@ describe('propose → review → apply flow', () => {
     });
     const con = createAgentConsole(host());
     const result = { openLoop: new Float32Array(4), closedLoop: new Float32Array(4), reductionDb: 10 };
-    const prop = await proposeTurn(brain, GEO, result, con);
+    const prop = await proposeTurn(brain, GEO, result, con, CTX);
     expect(prop.decision.kind).toBe('apply');
     expect(prop.packet.geometry).toEqual(GEO); // untouched: nothing applied yet
+    expect(prop.packet.goal).toBe('depth');
+    expect(prop.packet.bandMeters).toBeGreaterThan(0);
+    expect(prop.packet.memory).toEqual([]);
   });
 
   test('applyDecision applies ONLY the selected params, one console row each', async () => {
@@ -95,7 +112,7 @@ describe('propose → review → apply flow', () => {
     const brain = fakeBrain({ kind: 'unavailable', reason: 'budget' });
     const con = createAgentConsole(host());
     const result = { openLoop: new Float32Array(4), closedLoop: new Float32Array(4), reductionDb: 10 };
-    const prop = await proposeTurn(brain, GEO, result, con);
+    const prop = await proposeTurn(brain, GEO, result, con, CTX);
     expect(prop.decision).toEqual({ kind: 'unavailable', reason: 'budget' });
     expect(con.rowText(0)).toContain('budget');
   });
@@ -107,7 +124,7 @@ describe('runAgentTurn (accept-all composite, unchanged behavior)', () => {
     const brain: Brain = { propose: async (s) => (seen = s, { kind: 'unavailable', reason: 'noop' }) };
     const con = createAgentConsole(host());
     const result = { openLoop: new Float32Array(10), closedLoop: new Float32Array(10), reductionDb: 18 };
-    await runAgentTurn(brain, GEO, result, con);
+    await runAgentTurn(brain, GEO, result, con, CTX);
     expect(seen!.reductionDb).toBe(18);
     expect(seen!.leadMs).toBeGreaterThan(0);
     expect(seen!.geometry).toEqual(GEO);
@@ -123,7 +140,7 @@ describe('runAgentTurn (accept-all composite, unchanged behavior)', () => {
     });
     const con = createAgentConsole(host());
     const result = { openLoop: new Float32Array(10), closedLoop: new Float32Array(10), reductionDb: 10 };
-    const next = await runAgentTurn(brain, GEO, result, con);
+    const next = await runAgentTurn(brain, GEO, result, con, CTX);
     expect(next.geometry.speakers).toBe(3);
     expect(next.reductionDb).toBeGreaterThan(0); // rerun happened
     const proposalRow = con.rowText(1)!; // newest-first: row 0 = the "after" measurement, row 1 = the agent's proposal
@@ -135,7 +152,7 @@ describe('runAgentTurn (accept-all composite, unchanged behavior)', () => {
     const brain = fakeBrain({ kind: 'unavailable', reason: 'model spent its entire token budget reasoning — no decision content' });
     const con = createAgentConsole(host());
     const result = { openLoop: new Float32Array(10), closedLoop: new Float32Array(10), reductionDb: 10 };
-    const next = await runAgentTurn(brain, GEO, result, con);
+    const next = await runAgentTurn(brain, GEO, result, con, CTX);
     expect(next.geometry).toEqual(GEO);
     expect(con.rowText(0)!).toContain('budget');
   });

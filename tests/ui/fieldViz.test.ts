@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { CONFIG } from '../../src/core/rng.js';
-import { waveIntensity, zoneDepthDb, type Geometry } from '../../src/ui/fieldViz.js';
+import { waveIntensity, zoneDepthDb, quietBandMeters, type Geometry } from '../../src/ui/fieldViz.js';
 
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 const CORRIDOR_Y = 20; // world center (WORLD.heightMeters = 40)
@@ -50,5 +50,19 @@ describe('zoneDepthDb', () => {
     const low = zoneDepthDb(geo, CORRIDOR_Y, 100);
     const high = zoneDepthDb(geo, CORRIDOR_Y, 315);
     expect(low).toBeLessThan(high);
+  });
+});
+describe('quietBandMeters — the number the "widest band" goal optimizes', () => {
+  test('matches the map formula: node span + 1.5λ (λ of the chosen frequency)', () => {
+    const g1: Geometry = { ...geo, speakers: 1 };
+    expect(quietBandMeters(g1, 100)).toBeCloseTo((CONFIG.SPEED_OF_SOUND / 100) * 1.5, 9);
+    expect(quietBandMeters({ ...g1, speakers: 3 }, 100)).toBeCloseTo(8 + (CONFIG.SPEED_OF_SOUND / 100) * 1.5, 9);
+  });
+
+  test('more nodes → wider band; higher frequency → narrower band', () => {
+    const g1: Geometry = { ...geo, speakers: 1 };
+    const g5: Geometry = { ...geo, speakers: 5 };
+    expect(quietBandMeters(g5, 100)).toBeGreaterThan(quietBandMeters(g1, 100));
+    expect(quietBandMeters(g1, 630)).toBeLessThan(quietBandMeters(g1, 100));
   });
 });

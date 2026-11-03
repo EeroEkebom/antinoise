@@ -1,5 +1,5 @@
 import { validateGeometry } from '../ui/geometry.js';
-import { BASETEN_BASE_URL, BRAIN_MODEL, type AgentDecision, type AgentState, type Brain } from './brain.js';
+import { BASETEN_BASE_URL, BRAIN_MODEL, type AgentDecision, type AgentGoal, type AgentState, type Brain } from './brain.js';
 
 type Fetcher = (url: string, init: RequestInit) => Promise<unknown>;
 
@@ -9,9 +9,9 @@ type Reply = {
   choices?: Array<{ message?: { content?: string | null; reasoning_content?: string | null } }>;
 };
 
-const SYSTEM_PROMPT = [
+const BASE_PROMPT = [
   'You are the AI tuning assistant of Antinoise, a simulated feedforward road-noise-cancellation system.',
-  'You receive live state: quiet-zone reduction (dB), fiber lead (ms), current geometry, and per-frequency zone depth.',
+  'You receive live state: quiet-zone reduction (dB), quiet band width in meters, fiber lead (ms), current geometry, per-frequency zone depth, plus memory: previous accepted turns from this and earlier sessions, each with what changed and what it MEASURED afterward. Treat those precedents as evidence of what works — prefer moves consistent with the best-remembered results, adapt them to the current goal and setup.',
   'You propose ONE improvement. Reply with ONLY a JSON object, no other text:',
   '{"kind":"apply","geometry":{"towerMeters":N,"zoneMeters":N,"standoffMeters":N,"y":0.5,"trafficLevel":1,"speakers":N},"mu":N,"note":"one human sentence explaining the change"}',
   'Allowed knobs: towerMeters 8–59 (sensor distance from road; more = longer fiber lead), zoneMeters 10–59,',
@@ -20,8 +20,21 @@ const SYSTEM_PROMPT = [
   'wavelength caps the quiet band: high frequencies cannot be cancelled by more hardware.',
   'IMPORTANT truth about what you can improve: the MEASURED single-point reduction responds only to tower distance, standoff, and mu.',
   'Speakers and spacing WIDEN the covered band (the band-width number) but do NOT increase the point dB — never promise measured-dB gains from node count or spacing.',
-  'Be honest: if the current setup cannot be improved, reply {"kind":"apply", ...unchanged geometry..., "note":"no change — already near optimal"} or explain the physical limit.',
 ].join('\n');
+
+const GOAL_GUIDE: Record<AgentGoal, string> = {
+  depth: 'YOUR GOAL: maximize the measured single-point reduction (reductionDb). Work with tower distance, standoff and mu; the state field bandMeters is context, not the target.',
+  area: 'YOUR GOAL: maximize the quiet band width (bandMeters). Grow it with node count (1–5) and wider spacing; remember those do NOT raise the point dB. You MAY accept a reductionDb drop to gain band width — keep it small, ideally under ~3 dB, and say in your note what the trade is. Never promise dB gains from node count or spacing.',
+};
+
+const HONESTY = [
+  'Be honest: if the current setup cannot be improved toward the goal, reply {"kind":"apply", ...unchanged geometry..., "note":"no change — already near optimal"} or explain the physical limit.',
+];
+
+/** Full prompt: base + the goal-specific instruction, so each goal gets its own objective. */
+export function systemPrompt(goal: AgentGoal): string {
+  return [BASE_PROMPT, GOAL_GUIDE[goal], ...HONESTY].join('\n');
+}
 
 /** OpenAI-compatible route to the hackathon model on Baseten — a reasoning model: budget tokens for its thinking. */
 export function createBasetenRoute(apiKey: string, fetchFn: Fetcher = fetch as unknown as Fetcher): Brain {
@@ -32,7 +45,7 @@ export function createBasetenRoute(apiKey: string, fetchFn: Fetcher = fetch as u
       body: JSON.stringify({
         model: BRAIN_MODEL,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt(state.goal) },
           { role: 'user', content: JSON.stringify(state) },
         ],
         max_tokens: maxTokens,

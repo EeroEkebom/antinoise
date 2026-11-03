@@ -69,6 +69,13 @@ export function zoneDepthDb(geo: Geometry, corridorY: number, freqHz: number): n
   return 20 * Math.log10(Math.sqrt(sAmb / n) / Math.sqrt(Math.max(sSum / n, 1e-12)));
 }
 
+/** Width, in meters, of the honest quiet band printed on the map and fed to the agent:
+ *  the union of the array nodes' quiet bands at that frequency. */
+export function quietBandMeters(geo: Geometry, freqHz: number): number {
+  const lam = CONFIG.SPEED_OF_SOUND / freqHz;
+  return spacingOf(geo) * (geo.speakers - 1) + lam * 1.5;
+}
+
 /** Full repaint: field heat-map + 1D cross-section strip. Call on geometry/frequency change only. */
 export function renderField(
   canvas: HTMLCanvasElement,
@@ -139,7 +146,7 @@ export function renderField(
   c2d.lineWidth = 1;
   c2d.fillStyle = 'rgba(79,209,197,0.9)';
   c2d.font = '11px sans-serif';
-  const bandWm = spacingOf(geo) * (geo.speakers - 1) + lam * 1.5;
+  const bandWm = quietBandMeters(geo, FREQ);
   c2d.fillText(`quiet band ≈ ${bandWm.toFixed(1)} m (${geo.speakers} node${geo.speakers > 1 ? 's' : ''} @ ${spacingOf(geo).toFixed(0)} m)`, speakerX + 8, corridorY - unionHalf - 6);
   for (const off of nodeOffsets(geo)) {
     marker(speakerX, corridorY + off * yScale, 'Array', '#4fd1c5', opts.highlight === 'speaker', off >= 0);

@@ -93,6 +93,15 @@ Think of the assistant as **an AI engineer who tunes the system for you**:
    same traffic, same listening position, only the tuning differs.
 6. If it concludes that no change would help, it **says so and changes nothing** — a designed
    safety behavior: the assistant never risks making the noise louder.
+7. **Pick its goal** (the chips next to the ask-button): **deepest dB** (default — the measured
+   point reduction) or **widest band** — the assistant then tries to make the quiet area as big
+   as possible, primarily with more array nodes and wider spacing. Physically these trade off:
+   in wide-band mode it may accept a small dB drop (ideally under ~3 dB) to gain width, and
+   says so in its note. The measured-truth loop watches its goal's metric either way.
+8. **It remembers.** Every accepted, re-measured turn is filed to the agent's memory (kept in
+   your browser; *Clear* link removes it) — future suggestions get those outcomes as precedents,
+   so its advice sharpens over the session. This is memory engineering, not weight-learning:
+   the same protocol that lets the play-mud agent remember its character state.
 
 ## 5 · Place from a photo (SAM 3.1)
 

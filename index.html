@@ -43,8 +43,12 @@
         <div class="row agent-row">
           <button id="btn-agent" class="accent-btn">Ask the AI tuning assistant →</button>
           <span class="model-badge" title="Meta's open-weights Muse model, served via the Baseten hackathon key">Muse Spark Open · Meta open weights · via Baseten</span>
+          <span class="knob-label">Goal:</span>
+          <button id="goal-depth" class="mini active" title="Optimize the measured point reduction, like every turn before">deepest dB</button>
+          <button id="goal-area" class="mini" title="Optimize the quiet band width — may spend a little dB (≤ ~3) to get a wider zone">widest band</button>
         </div>
         <div id="agent-status" class="hint small"></div>
+        <div id="agent-memory-line" class="hint small" hidden>Agent memory: <span id="agent-memory-count">0</span> lessons — past accepted turns and their measured outcomes feed the next suggestions. <button id="btn-memory-clear" class="mini">Clear</button></div>
         <section id="review" class="review-card" hidden>
           <p class="hint" id="review-note"></p>
           <div id="review-rows"></div>
