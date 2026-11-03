@@ -182,7 +182,6 @@ btnSynthetic.classList.add('active');
 btnSynthetic.title = 'The seeded synthetic source (the test bed)';
 btnSynthetic.addEventListener('click', () => {
   sourceSignal = null;
-  recordingNote = '';
   el('traffic-note').textContent = 'Source: the seeded synthetic traffic (the test bed — fully reproducible).';
   for (const c of el('scenarios').children) c.classList.toggle('active', c === btnSynthetic);
   rerun();
