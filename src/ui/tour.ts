@@ -8,7 +8,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     target: 'listen',
     title: '1 · Hear the physics',
-    body: 'Flip between "Traffic noise" and "With Antinoise field". It is the same traffic, at the same moment — the only thing that changes is what the quiet zone hears: with the field, the anti-noise arrives and cancels the rumble (~20 dB quieter). Traffic mixes A/B/C are different random traffic patterns — like different times of day on the same road.',
+    body: 'Flip between "Traffic noise" and "With Antinoise field". It is the same traffic, at the same moment — the only thing that changes is what the quiet zone hears: with the field, the anti-noise arrives and cancels the rumble (~20 dB quieter). The "Real" buttons are three real road recordings (CC0) — city highway, motorway, wet US highway — and the synthetic source is the fully reproducible test bed.',
   },
   {
     target: 'field',

@@ -21,12 +21,11 @@ const proxyBrain: Brain = {
   },
 };
 
-const SEEDS = [42, 7, 99];
+const SYNTH_SEED = 42;
 
 type Audio = { ctx: AudioContext; gainOpen: GainNode; gainClosed: GainNode; srcOpen: AudioBufferSourceNode | null; srcClosed: AudioBufferSourceNode | null };
 let audio: Audio | null = null;
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
-let seed = SEEDS[0];
 let freqHz = 100;
 let sourceSignal: Float32Array | null = null; // active external recording (16 kHz sim signal), or null = synthetic
 let result: ScenarioResult | null = null;
@@ -142,7 +141,7 @@ function rerun(): void {
     return;
   }
   banner(null);
-  const cfg: ScenarioConfig = geometryToScenarioConfig(geo, { seed, sampleCount: 160000 });
+  const cfg: ScenarioConfig = geometryToScenarioConfig(geo, { seed: SYNTH_SEED, sampleCount: 160000 });
   if (sourceSignal) cfg.sourceSignal = sourceSignal; // real-recording preset when loaded
   try {
     result = runScenario(cfg);
@@ -268,7 +267,6 @@ el('btn-reset').addEventListener('click', () => {
   geo.speakers = 1;
   geo.spacingMeters = undefined;
   geo.trafficLevel = 1;
-  seed = SEEDS[0];
   freqHz = 100;
   sourceSignal = null;
   for (const c of el('scenarios').children) c.classList.remove('active');
@@ -285,7 +283,7 @@ el('btn-reset').addEventListener('click', () => {
 
 });
 
-// traffic mix picker
+// traffic source presets: synthetic + real recordings (real sources superseded the seeded A/B/C mixes)
 const REAL_SOURCES: { file: string; label: string; note: string }[] = [
   { file: 'traffic-city-highway', label: 'City highway', note: 'CC0 · sotiris_laskaris (Freesound #563698)' },
   { file: 'traffic-motorway-m6', label: 'Motorway M6', note: 'CC0 · JW_audio (Freesound #826246)' },
@@ -339,17 +337,6 @@ for (const rs of REAL_SOURCES) {
     } finally {
       b.disabled = false;
     }
-  });
-  el('scenarios').appendChild(b);
-}
-for (const s of SEEDS) {
-  const b = document.createElement('button');
-  b.textContent = `Traffic mix ${String.fromCharCode(65 + SEEDS.indexOf(s))}`;
-  b.addEventListener('click', () => {
-    for (const c of el('scenarios').children) c.classList.remove('active');
-    b.classList.add('active');
-    seed = s;
-    rerun();
   });
   el('scenarios').appendChild(b);
 }

@@ -30,9 +30,10 @@ What you simulate is a noise-cancellation system for a road — built like a cha
 
 ## 1 · Hear it (Listen card)
 
-1. **Traffic mixes A/B/C** are three different random traffic patterns on the same road — like
-   different times of day (different vehicles, different pass-by timings, different loudness moments).
-   The engineering is identical; only the "day on the road" differs.
+1. **Pick a traffic source.** The three **Real** buttons are real road recordings (CC0):
+   city highway, motorway M6, and a wet US highway. **Synthetic traffic** is the seeded
+   test bed — fully reproducible, which is what the tests and the assistant's measurements
+   rely on.
 2. Flip between **Traffic noise (no field)** and **With Antinoise field**: it is the *same traffic,
    at the same moment* — the only difference is what the quiet zone hears. With the field,
    the anti-noise cancels the rumble (~20 dB less). Headphones recommended: the content is deep rumble.
