@@ -23,7 +23,7 @@ const proxyBrain: Brain = {
 
 const SEEDS = [42, 7, 99];
 
-type Audio = { ctx: AudioContext; gainOpen: GainNode; gainClosed: GainNode };
+type Audio = { ctx: AudioContext; gainOpen: GainNode; gainClosed: GainNode; srcOpen: AudioBufferSourceNode | null; srcClosed: AudioBufferSourceNode | null };
 let audio: Audio | null = null;
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 let seed = SEEDS[0];
@@ -176,10 +176,21 @@ function rebuildAudioLoops(r: ScenarioResult): Promise<void> {
     closed.buffer = toBuffer(buffered.closed);
     open.loop = true;
     closed.loop = true;
+    // rebuild the looping pair in place: stop the old sources first (one pair plays at a time)
+    if (audio!.srcOpen) {
+      try { audio!.srcOpen.stop(); } catch { /* already stopped */ }
+      try { audio!.srcOpen.disconnect(); } catch { /* already disconnected */ }
+    }
+    if (audio!.srcClosed) {
+      try { audio!.srcClosed.stop(); } catch { /* already stopped */ }
+      try { audio!.srcClosed.disconnect(); } catch { /* already disconnected */ }
+    }
     open.connect(audio!.gainOpen);
     closed.connect(audio!.gainClosed);
     open.start();
     closed.start();
+    audio!.srcOpen = open;
+    audio!.srcClosed = closed;
   });
 }
 
@@ -200,7 +211,7 @@ async function initAudio(): Promise<void> {
   gainOpen.connect(master);
   gainClosed.connect(master);
   master.connect(ctx.destination);
-  audio = { ctx, gainOpen, gainClosed };
+  audio = { ctx, gainOpen, gainClosed, srcOpen: null, srcClosed: null };
   el('transport').hidden = false;
   el('readout').hidden = false;
   el('field').hidden = false;
