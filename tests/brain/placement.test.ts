@@ -43,12 +43,40 @@ describe('interpretPlacement', () => {
     expect(validate(p)).toBe(true);
   });
 
-  test('photo proportions translate: the corridor sits between road and the open area', () => {
+  test('REGRESSION (audit P1 #1/#2): bottom road → real proportion, a middle value — never the clamps', () => {
     const roadBoxes: Box[] = [{ id: 0, frame: 0, x1: 0, y1: 700, x2: 1200, y2: 800, w: 1200, h: 800 }]; // road at bottom
-    const openBoxes: Box[] = [{ id: 1, frame: 0, x1: 200, y1: 60, x2: 1000, y2: 400, w: 1200, h: 800 }]; // open far above
+    const openBoxes: Box[] = [{ id: 1, frame: 0, x1: 200, y1: 60, x2: 1000, y2: 400, w: 1200, h: 800 }]; // open ground above
     const p = interpretPlacement({ road: roadBoxes, zone: openBoxes }, FRAME.w, FRAME.h);
-    expect(p).toMatchObject({});
-    validate(p);
+    // nearest-edge gap 300 px of 800 → frac 0.375 → (0.35 + 0.55*0.375)*60 ≈ 33.4 m (proposal rounds to 0.1)
+    expect(p.zoneMeters).toBeCloseTo(0.35 * 60 + 0.55 * (300 / 800) * 60, 1);
+    expect(p.zoneMeters).toBeGreaterThan(10);
+    expect(p.zoneMeters).toBeLessThan(55);
+    expect(p.note).toContain('road at the bottom');
+  });
+
+  test('REGRESSION: zone farther from the road → larger proposed zone (monotone, honest proportions)', () => {
+    const road: Box[] = [{ id: 0, frame: 0, x1: 0, y1: 700, x2: 1200, y2: 800, w: 1200, h: 800 }];
+    const near: Box[] = [{ id: 1, frame: 0, x1: 200, y1: 60, x2: 1000, y2: 650, w: 1200, h: 800 }]; // gap 50 px
+    const far: Box[] = [{ id: 1, frame: 0, x1: 200, y1: 60, x2: 1000, y2: 200, w: 1200, h: 800 }];  // gap 500 px
+    const n = interpretPlacement({ road, zone: near }, FRAME.w, FRAME.h);
+    const f = interpretPlacement({ road, zone: far }, FRAME.w, FRAME.h);
+    expect(f.zoneMeters).toBeGreaterThan(n.zoneMeters);
+  });
+
+  test('zone box overlapping/abutting the road → gap 0, in-range proposal (never negative)', () => {
+    const road: Box[] = [{ id: 0, frame: 0, x1: 0, y1: 700, x2: 1200, y2: 800, w: 1200, h: 800 }];
+    const touching: Box[] = [{ id: 1, frame: 0, x1: 200, y1: 400, x2: 1000, y2: 700, w: 1200, h: 800 }];
+    const p = interpretPlacement({ road, zone: touching }, FRAME.w, FRAME.h);
+    expect(p.zoneMeters).toBeCloseTo(0.35 * 60, 5);
+  });
+
+  test('degenerate 1×1 frame (the live call-site bug) stays finite+clamped — call site now passes real dims', () => {
+    const road: Box[] = [{ id: 0, frame: 0, x1: 0, y1: 700, x2: 1200, y2: 800, w: 1200, h: 800 }];
+    const zone: Box[] = [{ id: 1, frame: 0, x1: 200, y1: 60, x2: 1000, y2: 400, w: 1200, h: 800 }];
+    const p = interpretPlacement({ road, zone }, 1, 1);
+    expect(Number.isFinite(p.zoneMeters)).toBe(true);
+    expect(p.zoneMeters).toBeGreaterThanOrEqual(10);
+    expect(p.zoneMeters).toBeLessThanOrEqual(55);
   });
 
   test('no road found → honest fallback proposal (untouched geometry, note explains)', () => {

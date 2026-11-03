@@ -21,7 +21,7 @@
           Simulated feedforward noise-cancellation for road rumble — sensors relay noise
           analysis through optical fiber so the field can cancel the sound <em>before it arrives</em>.
         </p>
-        <p class="honesty">Simulation · low-frequency target (&lt; ~500 Hz) · lead time = tower distance ÷ 343 m/s</p>
+        <p class="honesty">Simulation · low-frequency target (&lt; ~500 Hz) · fiber lead = (zone − tower − standoff) ÷ 343 m/s</p>
         <div class="row header-actions"><button id="btn-tour">Take the 60-second tour →</button></div>
       </header>
 
@@ -79,6 +79,8 @@
         <div id="setups" class="row"></div>
       </section>
 
+      <section id="map" class="card">
+        <h2>The field map</h2>
         <div id="speakers" class="row">
           <span class="knob-label">Array nodes (wider quiet band):</span>
         </div>
@@ -89,6 +91,7 @@
           <span class="knob-label">Wave frequency:</span>
         </div>
         <canvas id="field" class="field-canvas"></canvas>
+      </section>
       <div class="legend row">
         <span class="legend-item"><span class="dot" style="background:#7f8ff4"></span> Sensor tower (drags: sets lead)</span>
         <span class="legend-item"><span class="dot" style="background:#4fd1c5"></span> Cancel array + controller (drags: standoff)</span>

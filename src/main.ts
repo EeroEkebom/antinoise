@@ -130,6 +130,11 @@ el('btn-best').addEventListener('click', () => {
   geo.standoffMeters = bestGeo.standoffMeters;
   geo.speakers = bestGeo.speakers;
   geo.spacingMeters = bestGeo.spacingMeters;
+  if (bestGeo.trafficLevel !== undefined) geo.trafficLevel = bestGeo.trafficLevel; // the saved knob lives too
+  for (const c of el('traffic').children) {
+    const cb = c as HTMLButtonElement;
+    cb.classList.toggle('active', Number(cb.dataset['level'] ?? NaN) === geo.trafficLevel);
+  }
   rerun();
   agentConsole.log({ state: 'returned to session best', decision: 'go to best', applied: setupLabel(geo) });
 });
@@ -285,6 +290,12 @@ el('btn-reset').addEventListener('click', () => {
   for (const c of el('waves').children) c.classList.toggle('active', (c as HTMLButtonElement).textContent === '100 Hz');
   document.querySelectorAll('.tour-on').forEach((n) => n.classList.remove('tour-on'));
   sessionBest.reset();
+  // pending agent state dies with the scratch — a stale After-tuning button must not replay old results
+  agentReview = null;
+  postAgentResult = null;
+  el('review').hidden = true;
+  el('agent-ab').hidden = true;
+  agentConsole.setStatus('idle', false);
   tourHost.innerHTML = ''; // close any open tour card
   rerun(); // fresh readouts
 
@@ -445,7 +456,11 @@ el('btn-seg').addEventListener('click', async () => {
     };
     const road = parseSamBoxes(await seg('road'));
     const zone = parseSamBoxes(await seg('open ground'));
-    proposal = interpretPlacement({ road, zone }, 1, 1);
+    // SAM boxes are pixel-space of the original photo — real dimensions from the preview
+    // (a 1×1 fallback keeps the fraction bounded; the previous 1,1 call made every proposal clamp)
+    const frameW = previewEl.naturalWidth || 1200;
+    const frameH = previewEl.naturalHeight || 800;
+    proposal = interpretPlacement({ road, zone }, frameW, frameH);
     noteEl.textContent = proposal.note;
     agentConsole.log({ state: 'photo segmented', decision: 'placement proposed', applied: `tower ${proposal.towerMeters} m · zone ${proposal.zoneMeters} m · ${proposal.speakers} nodes` });
     el<HTMLButtonElement>('btn-apply-place').disabled = proposal.fallback;
@@ -531,6 +546,7 @@ el('btn-agent').addEventListener('click', async () => {
     const review = await proposeTurn(proxyBrain, geo, r, agentConsole, {
       goal: agentGoal,
       memory: agentMemory.precedents(),
+      bandFreqHz: freqHz,
     });
     clearInterval(t);
     if (review.decision.kind === 'unavailable') {
@@ -541,6 +557,12 @@ el('btn-agent').addEventListener('click', async () => {
     tickEl.textContent = 'Suggestion ready — review it just below (accept one by one, all, or discard).';
     agentReview = { decision: review.decision, preGeo: { ...geo }, preResult: r };
     renderReview(review.decision);
+  } catch (e) {
+    clearInterval(t);
+    agentConsole.stopThinking('idle');
+    const reason = e instanceof Error ? e.message : String(e);
+    tickEl.textContent = 'The assistant call failed (network or server) — try again.';
+    agentConsole.log({ state: '—', decision: 'assistant unreachable', applied: reason.slice(0, 120) });
   } finally {
     clearInterval(t);
     btn.disabled = false;
@@ -647,19 +669,33 @@ function toggleAgentStream(which: 'pre' | 'post'): void {
 
 el('btn-apply-sel').addEventListener('click', async () => {
   if (!agentReview || !result) return;
-  const only = checkedParams();
-  const next = only.includes('mu') && !only.some((p) => PARAM_LABELS.some(([k]) => k === p))
-    ? null
-    : await applyDecision(geo, result, agentReview.decision, agentConsole, { only: only.filter((p) => p !== 'mu') as never, sourceSignal: sourceSignal ?? undefined, bandFreqHz: freqHz });
-  // μ-only selection can't rerun the scenario — fold it in as an all-apply lite
-  const nextFinal = next ?? (await applyDecision(geo, result, agentReview.decision, agentConsole, { sourceSignal: sourceSignal ?? undefined, bandFreqHz: freqHz }));
-  afterAgent(nextFinal);
+  const checked = checkedParams();
+  if (checked.length === 0) {
+    agentConsole.log({ state: `${result.reductionDb.toFixed(1)} dB`, decision: 'nothing accepted', applied: 'nothing applied — the review stays open' });
+    return;
+  }
+  const only = checked.filter((p) => p !== 'mu') as ('towerMeters' | 'zoneMeters' | 'standoffMeters' | 'speakers' | 'spacingMeters')[];
+  // μ unchecked → strip it from the applied decision (it silently applied before)
+  const decision = checked.includes('mu') ? agentReview.decision : { ...agentReview.decision, mu: undefined };
+  try {
+    const next = only.length
+      ? await applyDecision(geo, result, decision, agentConsole, { only, sourceSignal: sourceSignal ?? undefined, bandFreqHz: freqHz })
+      : await applyDecision(geo, result, decision, agentConsole, { only: ['mu'] as never, sourceSignal: sourceSignal ?? undefined, bandFreqHz: freqHz });
+    afterAgent(next);
+  } catch (e) {
+    // e.g. feasibility throw deep in the sim — never an unhandled rejection mid-demo (audit P1 #7)
+    agentConsole.log({ state: `${result.reductionDb.toFixed(1)} dB`, decision: 'application failed — nothing changed', applied: (e instanceof Error ? e.message : String(e)).slice(0, 120) });
+  }
 });
 
 el('btn-apply-all').addEventListener('click', async () => {
   if (!agentReview || !result) return;
-  const next = await applyDecision(geo, result, agentReview.decision, agentConsole, { sourceSignal: sourceSignal ?? undefined, bandFreqHz: freqHz });
-  afterAgent(next);
+  try {
+    const next = await applyDecision(geo, result, agentReview.decision, agentConsole, { sourceSignal: sourceSignal ?? undefined, bandFreqHz: freqHz });
+    afterAgent(next);
+  } catch (e) {
+    agentConsole.log({ state: `${result.reductionDb.toFixed(1)} dB`, decision: 'application failed — nothing changed', applied: (e instanceof Error ? e.message : String(e)).slice(0, 120) });
+  }
 });
 
 el('btn-discard').addEventListener('click', () => {

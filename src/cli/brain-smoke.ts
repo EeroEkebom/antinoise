@@ -5,6 +5,8 @@ import type { AgentState } from '../brain/brain.js';
 import { runScenario } from '../core/scenario.js';
 import { leadMs, type Geometry } from '../ui/geometry.js';
 import { zoneDepthDb, quietBandMeters } from '../ui/fieldViz.js';
+import { extractKey } from '../core/keyfile.js';
+import { resolveLocalPaths } from '../core/paths.js';
 
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 const result = runScenario({ seed: 42, towerSeparationMeters: 20, zoneSeparationMeters: 30, sampleCount: 160000, mu: 0.05 });
@@ -22,9 +24,7 @@ const state: AgentState = {
 let key = process.env.BASETEN_API_KEY ?? '';
 if (!key) {
   try {
-    const txt = readFileSync('/Users/eeroekebom/projects/additional_utilization/baseten/baseten.rtf', 'utf8');
-    const plain = txt.replace(/\\[a-z]+[0-9]*[ ]?/g, '').replace(/[{}\\]/g, '').trim();
-    key = plain.split('\n').find((l) => l.length > 20 && /[A-Za-z0-9]/.test(l)) ?? '';
+    key = extractKey(readFileSync(resolveLocalPaths().basetenKeyRtf, 'utf8'), 'b10_');
   } catch {
     // fall through
   }

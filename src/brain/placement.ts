@@ -64,7 +64,7 @@ export function interpretPlacement(
 
   // photo → world: road-to-zone gap as a fraction of the frame maps onto the 60 m world
   const WORLD_W = 60;
-  const frac = zone ? gapMeters(zone, road, frameW, frameH) / (horizontalRoad ? frameH : frameW) : 0.5;
+  const frac = zone ? gapPx(zone, road) / (horizontalRoad ? frameH : frameW) : 0.5;
   const zoneMeters = clamp((0.35 + 0.55 * frac) * WORLD_W, 10, 55);
   const standoffMeters = clamp(zoneMeters * 0.15, 0.5, 25);
   // tower well inside the road side of the alignment budget (physics: lower tower = more lead)
@@ -82,7 +82,17 @@ export function interpretPlacement(
   };
 }
 
+/** Nearest-edge pixel distance between the zone box and the road band, along the corridor axis;
+ *  boxes touching or overlapping → 0 (a gap is a distance, never negative). */
+const gapPx = (b: Box, road: Box): number => {
+  const horizontalRoad = (road.x2 - road.x1) >= (road.y2 - road.y1);
+  return Math.max(
+    horizontalRoad ? Math.max(road.y1 - b.y2, b.y1 - road.y2) : Math.max(road.x1 - b.x2, b.x1 - road.x2),
+    0,
+  );
+};
+
 const gapMeters = (b: Box, road: Box, fw: number, fh: number): number => {
   const horizontalRoad = (road.x2 - road.x1) >= (road.y2 - road.y1);
-  return horizontalRoad ? ((b.y1 - road.y2) / fh) * 60 : ((b.x1 - road.x2) / fw) * 60;
+  return (gapPx(b, road) / (horizontalRoad ? fh : fw)) * 60;
 };

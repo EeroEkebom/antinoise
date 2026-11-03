@@ -12,6 +12,8 @@ export async function segmentImage(
   try {
     res = await fetch(`${META_API_BASE}/responses`, {
       method: 'POST',
+      // fail fast into the typed reason path — never leave the Segment button spinning
+      signal: AbortSignal.timeout(45000),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -36,8 +38,14 @@ export async function segmentImage(
     return { ok: false, reason: e instanceof Error ? e.message : String(e) };
   }
   if (!res.ok) return { ok: false, reason: `HTTP ${res.status} ${res.statusText}` };
-  // SSE: aggregate the output_text lane; a full body read is fine for single-image segmentation
-  const body = await res.text();
+  // SSE: aggregate the output_text lane; a full body read is fine for single-image segmentation.
+  // Errors here must resolve into the typed reason — a thrown body-read hangs the browser button forever.
+  let body: string;
+  try {
+    body = await res.text();
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message : String(e) };
+  }
   let out = '';
   for (const line of body.split('\n')) {
     if (!line.startsWith('data:')) continue;

@@ -2,6 +2,7 @@ import { defineConfig, type ViteDevServer, type Plugin } from 'vite';
 import { createBasetenRoute } from './src/brain/baseten.js';
 import { segmentImage } from './src/brain/samApi.js';
 import { extractKey } from './src/core/keyfile.js';
+import { resolveLocalPaths } from './src/core/paths.js';
 
 /** Dev-side brain proxy: the browser posts the agent state, the server holds the Baseten key —
  * the key never enters client code or the public repo. Falls back to a key file outside the repo. */
@@ -20,10 +21,17 @@ function brainProxyPlugin(): Plugin {
           res.end(JSON.stringify({ kind: 'unavailable', reason: 'bad state JSON' }));
           return;
         }
-        const route = createBasetenRoute(resolveKey());
-        const decision = await route.propose(state as never);
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(decision));
+        try {
+          const route = createBasetenRoute(resolveKey());
+          const decision = await route.propose(state as never);
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(decision));
+        } catch (e) {
+          // a crashed request must never end without a reply — the client button would hang
+          res.setHeader('Content-Type', 'application/json');
+          res.statusCode = 502;
+          res.end(JSON.stringify({ kind: 'unavailable', reason: `proxy crashed: ${e instanceof Error ? e.message : String(e)}` }));
+        }
       });
     },
   };
@@ -33,7 +41,7 @@ function resolveKey(): string {
   const env = process.env.BASETEN_API_KEY;
   if (env) return env;
   try {
-    return readKeyFromFile('/Users/eeroekebom/projects/additional_utilization/baseten/baseten.rtf');
+    return readKeyFromFile(resolveLocalPaths().basetenKeyRtf);
   } catch {
     return 'missing'; // route will return HTTP-error-shaped unavailable
   }
@@ -48,7 +56,7 @@ function readApiKeyLegacy(): string {
   // Meta Model API keys are long opaque tokens; anchor on any 40+ char run
   try {
     const { readFileSync } = require('node:fs') as { readFileSync: (p: string, enc: string) => string };
-    const txt = readFileSync('/Users/eeroekebom/projects/additional_utilization/baseten/meta-api-key.txt', 'utf8');
+    const txt = readFileSync(resolveLocalPaths().metaKeyTxt, 'utf8');
     return extractKey(txt, '');
   } catch {
     return 'missing';
@@ -82,12 +90,39 @@ function samProxyPlugin(): Plugin {
           res.end(JSON.stringify({ ok: false, reason: 'imageUrl and prompt required' }));
           return;
         }
-        const r = await segmentImage(resolveApiKey(), parsed.imageUrl, parsed.prompt);
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(r));
+        const url = guardSamUrl(parsed.imageUrl);
+        if (!url) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ ok: false, reason: 'only public https image URLs are supported (no localhost/intranet)' }));
+          return;
+        }
+        try {
+          const r = await segmentImage(resolveApiKey(), url, parsed.prompt);
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(r));
+        } catch (e) {
+          res.setHeader('Content-Type', 'application/json');
+          res.statusCode = 502;
+          res.end(JSON.stringify({ ok: false, reason: `proxy crashed: ${e instanceof Error ? e.message : String(e)}` }));
+        }
       });
     },
   };
+}
+
+/** Dev-only SSRF guard: the SAM API fetches the given URL — refuse localhost/intranet targets. */
+function guardSamUrl(raw: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:') return null;
+  const host = u.hostname;
+  if (host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) return null;
+  if (/^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(host)) return null;
+  return u.toString();
 }
 
 function resolveApiKey(): string {
@@ -96,7 +131,7 @@ function resolveApiKey(): string {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { readFileSync } = require('node:fs') as { readFileSync: (p: string, enc: string) => string };
-    return extractKey(readFileSync('/Users/eeroekebom/projects/additional_utilization/baseten/meta-api-key.rtf', 'utf8'), 'sk-');
+    return extractKey(readFileSync(resolveLocalPaths().metaKeyRtf, 'utf8'), 'sk-');
   } catch {
     return readApiKeyLegacy();
   }

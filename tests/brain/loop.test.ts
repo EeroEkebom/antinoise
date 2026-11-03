@@ -118,6 +118,17 @@ describe('propose → review → apply flow', () => {
   });
 });
 
+describe('applyDecision knob ownership (audit regressions)', () => {
+  test('the model template never overrides the traffic level (user knob)', async () => {
+    const con = createAgentConsole(host());
+    const userGeo = { ...GEO, trafficLevel: 1.4 };
+    const decision = { kind: 'apply' as const, geometry: { ...GEO, trafficLevel: 1, towerMeters: 21 }, mu: 0.08, note: 'n' };
+    const next = await applyDecision(userGeo, { openLoop: new Float32Array(4), closedLoop: new Float32Array(4), reductionDb: 10 }, decision, con);
+    expect(next.geometry.trafficLevel).toBe(1.4); // stays the user's Heavy
+    expect(next.geometry.towerMeters).toBe(21); // the agent's real knob applied
+  });
+});
+
 describe('runAgentTurn (accept-all composite, unchanged behavior)', () => {
   test('state packet carries the live truth (reduction, lead, geometry, zoneDepth)', async () => {
     let seen: AgentState | null = null;

@@ -102,6 +102,36 @@ describe('BasetenRoute', () => {
     expect(reason).toContain('<redacted>');
   });
 });
+describe('spacing knob (audit P1 #6 regression)', () => {
+  test('model-proposed spacingMeters parses through to the geometry', async () => {
+    const reply = { choices: [{ message: { role: 'assistant', content: '{"kind":"apply","geometry":{"towerMeters":25,"zoneMeters":30,"standoffMeters":5,"y":0.5,"trafficLevel":1,"speakers":3,"spacingMeters":2},"mu":0.1,"note":"spread via 2 m spacing"}' } }] };
+    const { route } = routeWithReply(reply);
+    const d = await route.propose(SAMPLE_STATE);
+    expect(d.kind).toBe('apply');
+    expect(d.kind === 'apply' && d.geometry.spacingMeters).toBe(2);
+  });
+
+  test('missing spacing → current spacing kept (absent key, not a 0)', async () => {
+    const reply = { choices: [{ message: { role: 'assistant', content: VALID_REPLY.choices[0].message.content } }] };
+    const { route } = routeWithReply(reply);
+    const d = await route.propose(SAMPLE_STATE);
+    expect(d.kind === 'apply' && d.geometry.spacingMeters).toBeUndefined();
+  });
+
+  test('out-of-range spacing → proposal rejected by feasibility physics', async () => {
+    const reply = { choices: [{ message: { role: 'assistant', content: '{"kind":"apply","geometry":{"towerMeters":25,"zoneMeters":30,"standoffMeters":5,"y":0.5,"trafficLevel":1,"speakers":3,"spacingMeters":12},"mu":0.1,"note":"spacing 12"}' } }] };
+    const { route } = routeWithReply(reply);
+    const d = await route.propose(SAMPLE_STATE);
+    expect(d.kind).toBe('unavailable');
+  });
+
+  test('traffic level from the model never overrides the user knob (audit #15)', async () => {
+    const { route } = routeWithReply({ choices: [{ message: { role: 'assistant', content: '{"kind":"apply","geometry":{"towerMeters":25,"zoneMeters":30,"standoffMeters":5,"y":0.5,"trafficLevel":1,"speakers":3},"mu":0.1,"note":"n"}' } }] });
+    const d = await route.propose({ ...SAMPLE_STATE, geometry: { ...SAMPLE_STATE.geometry, trafficLevel: 1.4 } });
+    expect(d.kind).toBe('apply'); // parsed fine — the reset to the user's level happens in applyDecision (loop tests)
+  });
+});
+
 describe('systemPrompt (goal-aware)', () => {
   test('depth goal: targets the measured point dB; band width is context only', () => {
     const p = systemPrompt('depth');

@@ -13,9 +13,9 @@ const BASE_PROMPT = [
   'You are the AI tuning assistant of Antinoise, a simulated feedforward road-noise-cancellation system.',
   'You receive live state: quiet-zone reduction (dB), quiet band width in meters, fiber lead (ms), current geometry, per-frequency zone depth, plus memory: previous accepted turns from this and earlier sessions, each with what changed and what it MEASURED afterward. Treat those precedents as evidence of what works — prefer moves consistent with the best-remembered results, adapt them to the current goal and setup.',
   'You propose ONE improvement. Reply with ONLY a JSON object, no other text:',
-  '{"kind":"apply","geometry":{"towerMeters":N,"zoneMeters":N,"standoffMeters":N,"y":0.5,"trafficLevel":1,"speakers":N},"mu":N,"note":"one human sentence explaining the change"}',
+  '{"kind":"apply","geometry":{"towerMeters":N,"zoneMeters":N,"standoffMeters":N,"y":0.5,"trafficLevel":1,"speakers":N,"spacingMeters":N},"mu":N,"note":"one human sentence explaining the change"}',
   'Allowed knobs: towerMeters 8–59 (sensor distance from road; more = longer fiber lead), zoneMeters 10–59,',
-  'standoffMeters 0.5–25 (array to zone), speakers 1–5 (integer), mu 0.01–0.3 (adaptation rate).',
+  'standoffMeters 0.5–25 (array to zone), speakers 1–5 (integer), spacingMeters 1–8 (node spacing, meters), mu 0.01–0.3 (adaptation rate).',
   'Physics you must respect: lead = (zone − tower − standoff)/343 m ≥ ~10 ms needs tower ≤ zone − standoff − 3.4 m;',
   'wavelength caps the quiet band: high frequencies cannot be cancelled by more hardware.',
   'IMPORTANT truth about what you can improve: the MEASURED single-point reduction responds only to tower distance, standoff, and mu.',
@@ -38,10 +38,11 @@ export function systemPrompt(goal: AgentGoal): string {
 
 /** OpenAI-compatible route to the hackathon model on Baseten — a reasoning model: budget tokens for its thinking. */
 export function createBasetenRoute(apiKey: string, fetchFn: Fetcher = fetch as unknown as Fetcher): Brain {
-  const call = async (maxTokens: number, state: AgentState): Promise<Reply> => {
+  const call = async (maxTokens: number, state: AgentState, signal?: AbortSignal): Promise<Reply> => {
     const res = (await fetchFn(`${BASETEN_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: signal ?? AbortSignal.timeout(90000), // fail fast into the typed unavailable path, never hang the demo
       body: JSON.stringify({
         model: BRAIN_MODEL,
         messages: [
@@ -97,6 +98,10 @@ export function createBasetenRoute(apiKey: string, fetchFn: Fetcher = fetch as u
         y: Number(g.y ?? 0.5),
         trafficLevel: Number(g.trafficLevel ?? 1),
         speakers: Math.round(Number(g.speakers ?? 1)),
+        // spacing is a real agent knob (esp. the widest-band goal); absent → keep the user's current spacing
+        ...(g.spacingMeters !== undefined && Number.isFinite(Number(g.spacingMeters))
+          ? { spacingMeters: Number(g.spacingMeters) }
+          : {}),
       };
       if (![geometry.towerMeters, geometry.zoneMeters, geometry.standoffMeters].every(Number.isFinite))
         return { kind: 'unavailable', reason: 'geometry numbers missing or non-finite' };

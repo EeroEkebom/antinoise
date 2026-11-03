@@ -8,8 +8,9 @@ export type AgentTurnResult = ScenarioResult & { geometry: Geometry };
 
 const DEFAULT_SPACING = 4;
 
-/** Per-turn context outside the sim: the optimization goal and the agent's remembered precedents. */
-export type AgentTurnContext = { goal: AgentGoal; memory: string[] };
+/** Per-turn context outside the sim: the optimization goal, the agent's remembered precedents, and the
+ * live frequency the band metric is measured at (same signal the honesty loop judges on — never two numbers). */
+export type AgentTurnContext = { goal: AgentGoal; memory: string[]; bandFreqHz?: number };
 
 /** The live-truth state packet — sim numbers only, never personal data. */
 export function packet(geo: Geometry, result: ScenarioResult, ctx: AgentTurnContext): AgentState {
@@ -22,7 +23,7 @@ export function packet(geo: Geometry, result: ScenarioResult, ctx: AgentTurnCont
       depthDb: zoneDepthDb(geo, WORLD_HEIGHT_M / 2, f),
     })),
     goal: ctx.goal,
-    bandMeters: quietBandMeters(geo, 100),
+    bandMeters: quietBandMeters(geo, ctx.bandFreqHz ?? 100),
     memory: ctx.memory,
   };
 }
@@ -67,6 +68,7 @@ export async function applyDecision(
 ): Promise<AgentTurnResult> {
   con.setStatus('applying', true);
   const nextGeo: Geometry = { ...geo, ...decision.geometry };
+  nextGeo.trafficLevel = geo.trafficLevel; // traffic level is the user's knob — the template's default never overrides it
   const bandText = (g: Geometry): string => ` · band ${quietBandMeters(g, opts.bandFreqHz ?? 100).toFixed(1)} m`;
   if (opts.only?.length) {
     for (const k of PARAMS) {

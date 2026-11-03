@@ -36,7 +36,7 @@ never automated.
 
 ```bash
 npm install
-npm test          # vitest — 92 tests, all green at freeze
+npm test          # vitest — 100 tests, all green at freeze
 npm run numbers   # headline physics numbers (reduction dB, fiber-lead advantage)
 npm run dev       # http://localhost:5199 (Safari-first)
 ```
