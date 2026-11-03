@@ -33,9 +33,9 @@ export async function proposeTurn(
 ): Promise<Proposal> {
   const pkt = packet(geo, result);
   const decision = await brain.propose(pkt);
-  con.setStatus('thinking', true);
+  con.startThinking(); // visible "thinking… N s" while the brain works
   if (decision.kind === 'unavailable') {
-    con.setStatus('idle', false);
+    con.stopThinking('idle');
     con.log({
       state: `${result.reductionDb.toFixed(1)} dB · lead ${leadMs(geo).toFixed(0)} ms`,
       decision: 'no proposal available',
@@ -99,7 +99,7 @@ export async function applyDecision(
       applied: diffs.length > 0 ? diffs.join(' · ') : 'no parameter change',
     });
   }
-  con.setStatus('idle', false);
+  con.stopThinking('idle');
   return { ...next, geometry: nextGeo };
 }
 

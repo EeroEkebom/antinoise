@@ -490,7 +490,8 @@ function renderReview(decision: Extract<AgentDecision, { kind: 'apply' }>): void
       innerHTML: `<input type="checkbox" checked data-p="mu"> <span>Adaptation rate μ: → <b class="new">${fmt(decision.mu)}</b></span>`,
     }));
   }
-  el('review-note').textContent = decision.note ? `The assistant says: “${decision.note}” — accept what you like:` : 'Proposed changes — accept what you like:';
+  el('review-note').textContent = decision.note ? `The assistant's suggestion — “${decision.note}” — accept what you like:` : 'Proposed changes — accept what you like:';
+  agentConsole.stopThinking('proposal ready');
   el('review').hidden = false;
 }
 

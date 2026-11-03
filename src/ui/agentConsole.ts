@@ -10,6 +10,10 @@ export type AgentConsole = ReturnType<typeof createAgentConsole>;
 export function createAgentConsole(host: HTMLElement): {
   log(entry: ConsoleEntry): void;
   setStatus(text: string, live: boolean): void;
+  /** Live "thinking… N s" ticker while the brain works; stopThinking resolves it. */
+  startThinking(): void;
+  stopThinking(status?: string): void;
+  statusText(): string;
   /** Test/support accessor: text of the i-th (0 = newest) trail row. */
   rowText(i: number): string | null;
 } {
@@ -25,6 +29,7 @@ export function createAgentConsole(host: HTMLElement): {
   const trail = host.querySelector<HTMLDivElement>('.trail')!;
   const dot = host.querySelector<HTMLElement>('.status-dot')!;
   const status = host.querySelector<HTMLElement>('.status-text')!;
+  let tick = 0 as unknown as ReturnType<typeof setInterval>;
 
   return {
     log(entry: ConsoleEntry): void {
@@ -41,9 +46,27 @@ export function createAgentConsole(host: HTMLElement): {
       status.textContent = 'acting';
     },
     setStatus(text: string, live: boolean): void {
+      stopThinking(text);
       dot.classList.toggle('dot-live', live);
       dot.classList.toggle('dot-idle', !live);
+    },
+    startThinking(): void {
+      let s = 0;
+      dot.classList.add('dot-live');
+      dot.classList.remove('dot-idle');
+      status.textContent = 'thinking… 0 s';
+      clearInterval(tick);
+      tick = setInterval(() => {
+        s += 1;
+        status.textContent = `thinking… ${s} s`;
+      }, 1000);
+    },
+    stopThinking(text = 'idle'): void {
+      clearInterval(tick);
       status.textContent = text;
+    },
+    statusText(): string {
+      return status.textContent ?? '';
     },
     rowText(i: number): string | null {
       // i = 0 is the NEWEST row (container is displayed column-reverse)

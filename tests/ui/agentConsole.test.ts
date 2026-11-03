@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { createAgentConsole } from '../../src/ui/agentConsole.js';
 
 describe('createAgentConsole', () => {
@@ -22,6 +22,18 @@ describe('createAgentConsole', () => {
     const head = host.querySelector('.console-head');
     expect(head?.textContent).toContain('AI tuning assistant');
     expect(head?.querySelector('.dot-idle')).toBeTruthy();
+  });
+
+  test('thinking ticker increments and stops cleanly', () => {
+    vi.useFakeTimers();
+    const host = document.createElement('div');
+    const con = createAgentConsole(host);
+    con.startThinking();
+    vi.advanceTimersByTime(3100);
+    expect(con.statusText()).toMatch(/thinking.*3 s/);
+    con.stopThinking('idle');
+    expect(con.statusText()).not.toMatch(/thinking/);
+    vi.useRealTimers();
   });
 
   test('trail is capped (keeps the 50 newest, drops the oldest)', () => {
