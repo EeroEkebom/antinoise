@@ -30,6 +30,10 @@ export function createAgentConsole(host: HTMLElement): {
   const dot = host.querySelector<HTMLElement>('.status-dot')!;
   const status = host.querySelector<HTMLElement>('.status-text')!;
   let tick = 0 as unknown as ReturnType<typeof setInterval>;
+  const stopThinkingC = (text = 'idle'): void => {
+    clearInterval(tick);
+    status.textContent = text;
+  };
 
   return {
     log(entry: ConsoleEntry): void {
@@ -46,7 +50,7 @@ export function createAgentConsole(host: HTMLElement): {
       status.textContent = 'acting';
     },
     setStatus(text: string, live: boolean): void {
-      stopThinking(text);
+      stopThinkingC(text);
       dot.classList.toggle('dot-live', live);
       dot.classList.toggle('dot-idle', !live);
     },
@@ -62,8 +66,7 @@ export function createAgentConsole(host: HTMLElement): {
       }, 1000);
     },
     stopThinking(text = 'idle'): void {
-      clearInterval(tick);
-      status.textContent = text;
+      stopThinkingC(text);
     },
     statusText(): string {
       return status.textContent ?? '';
