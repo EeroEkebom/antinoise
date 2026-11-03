@@ -320,6 +320,7 @@ for (const [label, lv] of [['Light', 0.6], ['Normal', 1], ['Heavy', 1.4]] as [st
   const b = document.createElement('button');
   b.textContent = label;
   b.dataset.level = String(lv);
+  if (lv === geo.trafficLevel) b.classList.add('active'); // default: Normal (=1)
   b.addEventListener('click', () => {
     geo.trafficLevel = lv;
     for (const c of el('traffic').children) c.classList.toggle('active', c === b);
@@ -328,6 +329,7 @@ for (const [label, lv] of [['Light', 0.6], ['Normal', 1], ['Heavy', 1.4]] as [st
   el('traffic').appendChild(b);
   void label;
 }
+el('traffic-note').textContent = 'Source: the seeded synthetic traffic (the test bed — fully reproducible). Cancelled stream is at Normal level.';
 
 // speaker-count knob: wider honest quiet band (nodes spread along the corridor)
 for (const n of [1, 2, 3, 5]) {
