@@ -4,22 +4,27 @@ export type BestEntry = { db: number; geometry: Geometry };
 
 const clone = (g: Geometry): Geometry => ({ ...g, ...(g.spacingMeters !== undefined ? { spacingMeters: g.spacingMeters } : {}) });
 
+// Session best is per traffic source: each source (synthetic / real recording) keeps
+// its own best, because dB numbers are only comparable within one source.
 export function createSessionBest() {
-  let best: BestEntry | null = null;
+  let bests = new Map<string, BestEntry>();
   return {
-    consider(db: number, geometry: Geometry): void {
-      if (!best || db > best.db || !Number.isFinite(best.db)) best = { db, geometry: clone(geometry) };
+    consider(db: number, geometry: Geometry, sourceKey: string): void {
+      const best = bests.get(sourceKey);
+      if (!best || db > best.db || !Number.isFinite(best.db)) bests.set(sourceKey, { db, geometry: clone(geometry) });
     },
-    current(): BestEntry | null {
+    current(sourceKey: string): BestEntry | null {
+      const best = bests.get(sourceKey);
       return best ? { db: best.db, geometry: clone(best.geometry) } : null;
     },
-    restore(): Geometry | null {
-      return best ? clone(best.geometry) : null;
+    restore(sourceKey: string): Geometry | null {
+      return bests.get(sourceKey) ? clone(bests.get(sourceKey)!.geometry) : null;
     },
     reset(): void {
-      best = null;
+      bests = new Map();
     },
-    label(): string {
+    label(sourceKey: string): string {
+      const best = bests.get(sourceKey);
       if (!best) return 'no result yet';
       return `${best.db.toFixed(1)} dB · ${setupLabel(best.geometry)}`;
     },

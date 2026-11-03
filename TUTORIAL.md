@@ -40,7 +40,9 @@ What you simulate is a noise-cancellation system for a road — built like a cha
 3. Readouts:
    - **Field's reduction (off → on)** — the headline number: how much quieter the zone
      gets when the field turns on, for the current setup. (Session best = the best such
-     off → on effect so far this session; the *Before/After tuning* pair is field-on on
+     off → on effect so far this session, **tracked per traffic source** — switch to another
+     source and that source's own best shows, or none yet.
+     The *Before/After tuning* pair is field-on on
      both sides and isolates the assistant's tuning instead.)
    - **Fiber lead** — the milliseconds of pre-arrival information the geometry bought.
    - **Traffic at zone** — how much the traffic has already faded with distance *before* any field:

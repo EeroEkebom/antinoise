@@ -28,6 +28,7 @@ let audio: Audio | null = null;
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 let freqHz = 100;
 let sourceSignal: Float32Array | null = null; // active external recording (16 kHz sim signal), or null = synthetic
+let sourceKey = 'synthetic'; // which traffic source owns the session-best entry
 let result: ScenarioResult | null = null;
 let dragging: Marker | null = null;
 
@@ -106,7 +107,7 @@ function renderSetups(): void {
 }
 el('btn-save-setup').addEventListener('click', () => {
   const name = el<HTMLInputElement>('setup-name').value.trim() || `setup ${setups.length + 1}`;
-  const note = result && sessionBest.current() && Math.abs((sessionBest.current()?.db ?? 0) - result.reductionDb) < 0.05
+  const note = result && sessionBest.current(sourceKey) && Math.abs((sessionBest.current(sourceKey)?.db ?? 0) - result.reductionDb) < 0.05
     ? 'this was the session best'
     : 'user-saved';
   setups.push({ name, geometry: { ...geo, spacingMeters: geo.spacingMeters, trafficLevel: geo.trafficLevel }, note });
@@ -117,7 +118,7 @@ el('btn-save-setup').addEventListener('click', () => {
 });
 
 el('btn-best').addEventListener('click', () => {
-  const bestGeo = sessionBest.restore();
+  const bestGeo = sessionBest.restore(sourceKey);
   if (!bestGeo) return;
   geo.towerMeters = bestGeo.towerMeters;
   geo.zoneMeters = bestGeo.zoneMeters;
@@ -158,10 +159,10 @@ function rerun(): void {
   if (audio) void rebuildAudioLoops(result);
   draw();
 
-  // session-best tracker (skips infeasible-throw configs, which never reach here)
-  sessionBest.consider(result.reductionDb, geo);
-  el('v-best').textContent = sessionBest.current()?.db.toFixed(1) + ' dB';
-  el('btn-best').hidden = false;
+  // session-best tracker, per traffic source (skips infeasible-throw configs, which never reach here)
+  sessionBest.consider(result.reductionDb, geo, sourceKey);
+  el('v-best').textContent = sessionBest.current(sourceKey)?.db.toFixed(1) + ' dB';
+  el('btn-best').hidden = sessionBest.current(sourceKey) === null;
   el('setups-saver').hidden = false;
 }
 
@@ -267,6 +268,7 @@ el('btn-reset').addEventListener('click', () => {
   geo.speakers = 1;
   geo.spacingMeters = undefined;
   geo.trafficLevel = 1;
+  sourceKey = 'synthetic';
   freqHz = 100;
   sourceSignal = null;
   for (const c of el('scenarios').children) c.classList.remove('active');
@@ -316,6 +318,7 @@ btnSynthetic.classList.add('active');
 btnSynthetic.title = 'The seeded synthetic source (the test bed)';
 btnSynthetic.addEventListener('click', () => {
   sourceSignal = null;
+  sourceKey = 'synthetic';
   el('traffic-note').textContent = 'Source: the seeded synthetic traffic (the test bed — fully reproducible).';
   for (const c of el('scenarios').children) c.classList.toggle('active', c === btnSynthetic);
   rerun();
@@ -329,6 +332,7 @@ for (const rs of REAL_SOURCES) {
     b.disabled = true;
     try {
       sourceSignal = await loadRecording(rs.file);
+      sourceKey = rs.file;
       el('traffic-note').textContent = `Source: real recording — ${rs.note}.`;
       for (const c of el('scenarios').children) c.classList.toggle('active', c === b);
       rerun();
