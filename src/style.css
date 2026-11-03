@@ -96,6 +96,16 @@ button.primary.active { background: #175a52; color: #eafffb; }
 .hint.small { font-size: 0.78rem; }
 
 .grow { flex: 1 1 240px; }
+.model-badge {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  border: 1px solid #232a3a;
+  border-radius: 12px;
+  padding: 3px 10px;
+  align-self: center;
+  white-space: nowrap;
+}
+
 .review-card {
   background: var(--surface-2);
   border: 1px solid var(--accent-dim);

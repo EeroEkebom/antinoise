@@ -23,7 +23,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     target: 'agent-console',
     title: '4 · The AI tuning assistant',
-    body: 'Ask the AI (Meta\'s Muse model, open weights) to tune the field for you: it looks at the current situation — loudness, lead time, geometry, how deep the cancellation is at each frequency — proposes design changes, and you review them: accept one by one, take all, or discard. The console shows every step: observed → decided → applied, and the field re-measures with the after-dB. If nothing would help, it says so instead of risking a louder zone.',
+    body: 'Ask the AI (Meta Muse Spark Open — Meta\'s open-weights model) to tune the field for you: it looks at the current situation — loudness, lead time, geometry, how deep the cancellation is at each frequency — proposes design changes, and you review them: accept one by one, take all, or discard. The console shows every step: observed → decided → applied, and the field re-measures with the after-dB. If nothing would help, it says so instead of risking a louder zone.',
   },
   {
     target: 'photo',
