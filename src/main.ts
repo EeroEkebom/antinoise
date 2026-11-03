@@ -155,7 +155,7 @@ function rerun(): void {
   // traffic loudness at the zone vs the roadside: line-source gain 10/(10+d)
   const ambDb = 20 * Math.log10(10 / (10 + geo.zoneMeters));
   el('v-amb').textContent = `${ambDb.toFixed(1)} dB vs roadside`;
-  el('v-geo').textContent = `towers ${geo.towerMeters.toFixed(0)} m · zone ${geo.zoneMeters.toFixed(0)} m · array ${geo.standoffMeters.toFixed(1)} m · ${geo.speakers} nodes @ ${geo.spacingMeters ?? 4} m`;
+  el('v-geo').textContent = `sensor from road ${geo.towerMeters.toFixed(0)} m · zone from road ${geo.zoneMeters.toFixed(0)} m · standoff ${geo.standoffMeters.toFixed(1)} m · ${geo.speakers} units @ ${geo.spacingMeters ?? 4} m`;
   if (audio) void rebuildAudioLoops(result);
   draw();
 
@@ -454,27 +454,39 @@ let postAgentResult: (ScenarioResult & { geometry: Geometry }) | null = null;
 el('btn-agent').addEventListener('click', async () => {
   const btn = el<HTMLButtonElement>('btn-agent');
   btn.disabled = true;
+  // ticker right here under the button — the first thing the eye finds after clicking
+  let sec = 0;
+  const tickEl = el<HTMLParagraphElement>('agent-status');
+  tickEl.textContent = 'AI is doing the evaluation… 0 s';
+  const t = setInterval(() => {
+    sec += 1;
+    tickEl.textContent = `AI is doing the evaluation… ${sec} s`;
+  }, 1000);
   try {
     const r: ScenarioResult | null = result;
     if (!r) return;
     const review = await proposeTurn(proxyBrain, geo, r, agentConsole);
+    clearInterval(t);
     if (review.decision.kind === 'unavailable') {
+      tickEl.textContent = 'No usable suggestion this time — the model explained why (see the trail below).';
       el('review').hidden = true;
       return;
     }
+    tickEl.textContent = 'Suggestion ready — review it just below (accept one by one, all, or discard).';
     agentReview = { decision: review.decision, preGeo: { ...geo }, preResult: r };
     renderReview(review.decision);
   } finally {
+    clearInterval(t);
     btn.disabled = false;
   }
 });
 
 const PARAM_LABELS: [string, string][] = [
-  ['towerMeters', 'Sensor tower distance'],
-  ['zoneMeters', 'Quiet-zone distance'],
-  ['standoffMeters', 'Array standoff'],
-  ['speakers', 'Array nodes'],
-  ['spacingMeters', 'Node spacing'],
+  ['towerMeters', 'Sensor tower distance from road'],
+  ['zoneMeters', 'Quiet-zone distance from road'],
+  ['standoffMeters', 'Cancel-array standoff — the gap between the array and the quiet zone'],
+  ['speakers', 'Array nodes (number of noise-cancellation field units in a line along the road)'],
+  ['spacingMeters', 'Node spacing — how far apart the field units sit along the road'],
 ];
 
 function renderReview(decision: Extract<AgentDecision, { kind: 'apply' }>): void {
@@ -494,7 +506,7 @@ function renderReview(decision: Extract<AgentDecision, { kind: 'apply' }>): void
   if (decision.mu !== undefined) {
     rows.appendChild(Object.assign(document.createElement('label'), {
       className: 'review-row',
-      innerHTML: `<input type="checkbox" checked data-p="mu"> <span>Adaptation rate μ: → <b class="new">${fmt(decision.mu)}</b></span>`,
+      innerHTML: `<input type="checkbox" checked data-p="mu"> <span>Adaptation rate — how fast the field learns the noise: → <b class="new">${fmt(decision.mu)}</b></span>`,
     }));
   }
   el('review-note').textContent = decision.note ? `The assistant's suggestion — “${decision.note}” — accept what you like:` : 'Proposed changes — accept what you like:';

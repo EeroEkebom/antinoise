@@ -106,6 +106,15 @@ A worked example:
 You can also paste any public street-photo URL of your own — the proposal is derived from
 *that* photo's proportions. You always confirm before applying.
 
+## 5 · The words, in plain language
+
+- **Sensor tower distance** = how far the sensor sits from the road (smaller = more foresight in ms).
+- **Quiet-zone distance** = how far the protected spot is from the road (traffic is quieter here, even without the field).
+- **Cancel array** = the row of noise-cancellation field units along the road; **nodes/units** = the units; **spacing** = how far apart they sit.
+- **Standoff** = the gap between the last unit and the quiet zone (the anti-noise's own travel distance).
+- **Adaptation rate (μ)** = how quickly the field learns and tracks the noise — too fast can overshoot, too slow drifts behind rush-hour changes.
+- **Lead** = the foresight in ms bought by geometry: `(zone − tower − standoff) / 343 m/s`.
+
 ## Try a full session
 
 1. Take the tour (60 s) → 2. A/B listen → 3. Drag the zone: feel loudness vs. reduction
