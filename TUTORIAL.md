@@ -70,22 +70,23 @@ What you simulate is a noise-cancellation system for a road — built like a cha
   traffic, the anti-noise halves with it). This is also why one tuning works for quiet nights
   *and* rush hour alike.
 
-## 4 · The commissioning agent (Meta's Muse Spark Open — open weights)
+## 4 · The AI tuning assistant (Meta's Muse Spark Open — open weights)
 
-Think of the agent as the **commissioning engineer who tunes the system on your behalf**:
+Think of the assistant as **an AI engineer who tunes the system for you**:
 
-1. Click **Consult the commissioning agent →**.
+1. Click **Ask the AI tuning assistant →**.
 2. It looks at the **current situation**: the zone reduction (dB), the fiber lead (ms), the whole
    geometry, and how deep the cancellation is at each frequency (63 Hz … 630 Hz).
-3. It **weighs what is physically possible** — the wavelength cap, the lead needed for the array's
-   timing to stay causal — and proposes concrete design changes (tower distance, node count,
-   spacing, standoff, adaptation rate).
-4. The proposal is **validated against feasibility physics** before anything applies; then the field
-   **re-measures**: the console shows the whole trail as *observed → decided → applied* →
-   *after: X dB* — receipts, not claims.
-5. If it concludes that no change would help within the physics, it **changes nothing** — a designed
-   safety behavior: the agent never risks making the noise louder. (You can see this on impossible
-   setups: it declines rather than "cancels".)
+3. It **proposes design changes** and shows its reasoning — tower distance, node count, spacing,
+   standoff, adaptation rate.
+4. **You review** each change (current → proposed, one row per change): accept the ones you like,
+   take all, or discard the whole proposal. Accepted changes are validated against feasibility
+   physics before anything applies; then the field **re-measures** and the console shows the trail
+   (*observed → decided → applied → after: X dB*).
+5. A **Before tuning / After tuning** pair appears so you can A/B the assistant's impact —
+   same traffic, same listening position, only the tuning differs.
+6. If it concludes that no change would help, it **says so and changes nothing** — a designed
+   safety behavior: the assistant never risks making the noise louder.
 
 ## 5 · Place from a photo (SAM 3.1)
 

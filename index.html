@@ -40,7 +40,21 @@
           <button id="btn-stop">Stop</button>
         </div>
         <div class="row">
-          <button id="btn-agent" class="accent-btn">Consult the commissioning agent →</button>
+          <button id="btn-agent" class="accent-btn">Ask the AI tuning assistant →</button>
+        </div>
+        <section id="review" class="review-card" hidden>
+          <p class="hint" id="review-note"></p>
+          <div id="review-rows"></div>
+          <div class="row">
+            <button id="btn-apply-sel" class="primary">Apply selected</button>
+            <button id="btn-apply-all" class="primary">Apply all</button>
+            <button id="btn-discard">Discard</button>
+          </div>
+        </section>
+        <div id="agent-ab" class="row" hidden>
+          <span class="knob-label">The assistant's change:</span>
+          <button id="btn-pre-agent">Before tuning</button>
+          <button id="btn-post-agent" class="primary">After tuning</button>
         </div>
         <div id="readout" class="readout" hidden>
           <div class="stat"><span class="k">Zone reduction</span><span class="v" id="v-db">–</span></div>

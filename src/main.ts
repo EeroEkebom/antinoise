@@ -4,7 +4,7 @@ import { prepareAudioBuffers } from './audio/bridge.js';
 import { validateGeometry, geometryToScenarioConfig, leadMs, type Geometry } from './ui/geometry.js';
 import { renderField, hitTest, pxToMeters, type Marker } from './ui/fieldViz.js';
 import { createAgentConsole } from './ui/agentConsole.js';
-import { runAgentTurn } from './brain/loop.js';
+import { proposeTurn, applyDecision } from './brain/loop.js';
 import type { AgentDecision, Brain } from './brain/brain.js';
 import { parseSamBoxes, interpretPlacement, type PlacementProposal } from './brain/placement.js';
 import { createTour } from './ui/tour.js';
@@ -69,32 +69,32 @@ function rerun(): void {
   const ambDb = 20 * Math.log10(10 / (10 + geo.zoneMeters));
   el('v-amb').textContent = `${ambDb.toFixed(1)} dB vs roadside`;
   el('v-geo').textContent = `towers ${geo.towerMeters.toFixed(0)} m · zone ${geo.zoneMeters.toFixed(0)} m · array ${geo.standoffMeters.toFixed(1)} m · ${geo.speakers} nodes @ ${geo.spacingMeters ?? 4} m`;
-  if (audio) rebuildAudio(cfg);
+  if (audio) void rebuildAudioLoops(result);
   draw();
 }
 
-async function rebuildAudio(cfg: ScenarioConfig): Promise<void> {
-  if (!result) return;
-  const ctx = audio!.ctx;
-  await ctx.resume();
-  const buffered = prepareAudioBuffers({ open: result.openLoop, closed: result.closedLoop }, ctx.sampleRate);
-  const toBuffer = (arr: Float32Array): AudioBuffer => {
-    const b = ctx.createBuffer(1, arr.length, ctx.sampleRate);
-    b.copyToChannel(new Float32Array(arr), 0);
-    return b;
-  };
-  // rebuild the looping pair in place: new sources, same gains
-  const open = ctx.createBufferSource();
-  const closed = ctx.createBufferSource();
-  open.buffer = toBuffer(buffered.open);
-  closed.buffer = toBuffer(buffered.closed);
-  open.loop = true;
-  closed.loop = true;
-  open.connect(audio!.gainOpen);
-  closed.connect(audio!.gainClosed);
-  open.start();
-  closed.start();
-  void cfg;
+function rebuildAudioLoops(r: ScenarioResult): Promise<void> {
+  if (!audio) return Promise.resolve();
+  const ctx = audio.ctx;
+  return ctx.resume().then(() => {
+    const buffered = prepareAudioBuffers({ open: r.openLoop, closed: r.closedLoop }, ctx.sampleRate);
+    const toBuffer = (arr: Float32Array): AudioBuffer => {
+      const b = ctx.createBuffer(1, arr.length, ctx.sampleRate);
+      b.copyToChannel(new Float32Array(arr), 0);
+      return b;
+    };
+    // rebuild the looping pair in place: new sources, same gains
+    const open = ctx.createBufferSource();
+    const closed = ctx.createBufferSource();
+    open.buffer = toBuffer(buffered.open);
+    closed.buffer = toBuffer(buffered.closed);
+    open.loop = true;
+    closed.loop = true;
+    open.connect(audio!.gainOpen);
+    closed.connect(audio!.gainClosed);
+    open.start();
+    closed.start();
+  });
 }
 
 function draw(highlight: Marker | null = null): void {
@@ -336,22 +336,123 @@ el('btn-tour').addEventListener('click', () => {
 });
 
 // consult the real commissioning agent (Muse Spark Open via the dev proxy — the key never reaches the browser)
+// the AI tuning assistant: propose → USER REVIEWS → apply (one by one or all) → before/after A/B
+type AgentReview = {
+  decision: Extract<AgentDecision, { kind: 'apply' }>;
+  preGeo: Geometry;
+  preResult: ScenarioResult;
+};
+let agentReview: AgentReview | null = null;
+let postAgentResult: (ScenarioResult & { geometry: Geometry }) | null = null;
+
 el('btn-agent').addEventListener('click', async () => {
   const btn = el<HTMLButtonElement>('btn-agent');
-  if (!result) rerun();
-  if (!result) return;
   btn.disabled = true;
   try {
-    const next = await runAgentTurn(proxyBrain, geo, result, agentConsole);
-    geo.towerMeters = next.geometry.towerMeters;
-    geo.zoneMeters = next.geometry.zoneMeters;
-    geo.standoffMeters = next.geometry.standoffMeters;
-    geo.speakers = next.geometry.speakers;
-    rerun();
+    const r: ScenarioResult | null = result;
+    if (!r) return;
+    const review = await proposeTurn(proxyBrain, geo, r, agentConsole);
+    if (review.decision.kind === 'unavailable') {
+      el('review').hidden = true;
+      return;
+    }
+    agentReview = { decision: review.decision, preGeo: { ...geo }, preResult: r };
+    renderReview(review.decision);
   } finally {
     btn.disabled = false;
   }
 });
+
+const PARAM_LABELS: [string, string][] = [
+  ['towerMeters', 'Sensor tower distance'],
+  ['zoneMeters', 'Quiet-zone distance'],
+  ['standoffMeters', 'Array standoff'],
+  ['speakers', 'Array nodes'],
+  ['spacingMeters', 'Node spacing'],
+];
+
+function renderReview(decision: Extract<AgentDecision, { kind: 'apply' }>): void {
+  const fmt = (v: number): string => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+  const g = decision.geometry as unknown as Record<string, number | undefined>;
+  const rows = el('review-rows');
+  rows.innerHTML = '';
+  for (const [key, label] of PARAM_LABELS) {
+    const proposed = g[key];
+    const current = (geo as unknown as Record<string, number | undefined>)[key] as number | undefined;
+    if (proposed === undefined || proposed === current) continue;
+    const row = document.createElement('label');
+    row.className = 'review-row';
+    row.innerHTML = `<input type="checkbox" checked data-p="${key}"> <span>${label}: <b>${fmt(current ?? 0)}</b> → <b class="new">${fmt(proposed)}</b></span>`;
+    rows.appendChild(row);
+  }
+  if (decision.mu !== undefined) {
+    rows.appendChild(Object.assign(document.createElement('label'), {
+      className: 'review-row',
+      innerHTML: `<input type="checkbox" checked data-p="mu"> <span>Adaptation rate μ: → <b class="new">${fmt(decision.mu)}</b></span>`,
+    }));
+  }
+  el('review-note').textContent = decision.note ? `The assistant says: “${decision.note}” — accept what you like:` : 'Proposed changes — accept what you like:';
+  el('review').hidden = false;
+}
+
+function checkedParams(): string[] {
+  return Array.from(el('review-rows').querySelectorAll<HTMLInputElement>('input:checked')).map((i) => i.dataset.p!);
+}
+
+function afterAgent(next: ScenarioResult & { geometry: Geometry }): void {
+  el('review').hidden = true;
+  el('agent-ab').hidden = !agentReview;
+  geo.towerMeters = next.geometry.towerMeters;
+  geo.zoneMeters = next.geometry.zoneMeters;
+  geo.standoffMeters = next.geometry.standoffMeters;
+  geo.speakers = next.geometry.speakers;
+  if (next.geometry.spacingMeters !== undefined) geo.spacingMeters = next.geometry.spacingMeters;
+  rerun();
+  postAgentResult = next;
+  el('btn-post-agent')!.textContent = `After tuning (${next.reductionDb.toFixed(1)} dB)`;
+  if (agentReview) {
+    el('btn-pre-agent')!.textContent = `Before tuning (${agentReview.preResult.reductionDb.toFixed(1)} dB)`;
+    if (audio) void toggleAgentStream('post');
+  }
+}
+
+function toggleAgentStream(which: 'pre' | 'post'): void {
+  const target = which === 'pre' ? agentReview?.preResult : postAgentResult;
+  if (!target) return;
+  void rebuildAudioLoops(target).then(() => {
+    // closed-loop (field ON) is the relevant side for the before/after comparison
+    audio && toggle('closed');
+  });
+  el('btn-pre-agent').classList.toggle('active', which === 'pre');
+  el('btn-post-agent').classList.toggle('active', which === 'post');
+}
+
+el('btn-apply-sel').addEventListener('click', async () => {
+  if (!agentReview || !result) return;
+  const only = checkedParams();
+  const next = only.includes('mu') && !only.some((p) => PARAM_LABELS.some(([k]) => k === p))
+    ? null
+    : await applyDecision(geo, result, agentReview.decision, agentConsole, { only: only.filter((p) => p !== 'mu') as never });
+  // μ-only selection can't rerun the scenario — fold it in as an all-apply lite
+  const nextFinal = next ?? (await applyDecision(geo, result, agentReview.decision, agentConsole));
+  afterAgent(nextFinal);
+});
+
+el('btn-apply-all').addEventListener('click', async () => {
+  if (!agentReview || !result) return;
+  const next = await applyDecision(geo, result, agentReview.decision, agentConsole);
+  afterAgent(next);
+});
+
+el('btn-discard').addEventListener('click', () => {
+  agentConsole.log({ state: agentReview ? `${agentReview.preResult.reductionDb.toFixed(1)} dB` : '—', decision: 'user discarded the proposal', applied: 'geometry unchanged' });
+  agentReview = null;
+  el('review').hidden = true;
+  el('agent-ab').hidden = true;
+});
+
+el('btn-pre-agent')!.addEventListener('click', () => toggleAgentStream('pre'));
+el('btn-post-agent')!.addEventListener('click', () => toggleAgentStream('post'));
 
 // drag interaction on the field
 const canvas = el<HTMLCanvasElement>('field');

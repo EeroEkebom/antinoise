@@ -17,7 +17,7 @@ export function createAgentConsole(host: HTMLElement): {
   host.innerHTML = `
     <div class="console-head">
       <span class="status-dot dot-idle"></span>
-      <span class="head-text">Commissioning agent</span>
+      <span class="head-text">AI tuning assistant</span>
       <span class="status-text">idle</span>
     </div>
     <div class="trail"></div>

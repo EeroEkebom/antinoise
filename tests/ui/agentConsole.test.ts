@@ -20,7 +20,7 @@ describe('createAgentConsole', () => {
     const host = document.createElement('div');
     createAgentConsole(host);
     const head = host.querySelector('.console-head');
-    expect(head?.textContent).toContain('Commissioning agent');
+    expect(head?.textContent).toContain('AI tuning assistant');
     expect(head?.querySelector('.dot-idle')).toBeTruthy();
   });
 

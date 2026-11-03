@@ -22,8 +22,8 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     target: 'agent-console',
-    title: '4 · The commissioning agent (does the tuning for you)',
-    body: 'Meta\'s open-weights Muse Spark Open looks at the current situation — loudness, lead time, geometry, how deep the cancellation is at each frequency — weighs what is physically possible, and proposes design changes (tower distance, node count, spacing, standoff, adaptation rate). The field is then re-measured so you see whether it helped: observed → decided → applied, with receipts. If it concludes no change would help within the physics, it changes nothing — rather than risk making the noise louder.',
+    title: '4 · The AI tuning assistant',
+    body: 'Ask the AI (Meta\'s Muse model, open weights) to tune the field for you: it looks at the current situation — loudness, lead time, geometry, how deep the cancellation is at each frequency — proposes design changes, and you review them: accept one by one, take all, or discard. The console shows every step: observed → decided → applied, and the field re-measures with the after-dB. If nothing would help, it says so instead of risking a louder zone.',
   },
   {
     target: 'photo',
