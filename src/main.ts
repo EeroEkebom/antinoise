@@ -254,6 +254,37 @@ el('btn-stop').addEventListener('click', () => {
   el('readout').hidden = true;
 });
 
+// reset: full scratch — default geometry/traffic/view; the guided tour highlight cleared
+el('btn-reset').addEventListener('click', () => {
+  if (audio) {
+    audio.ctx.close();
+    audio = null;
+  }
+  el('transport').hidden = true;
+  el('readout').hidden = true;
+  geo.towerMeters = 20;
+  geo.zoneMeters = 30;
+  geo.standoffMeters = 5;
+  geo.speakers = 1;
+  geo.spacingMeters = undefined;
+  geo.trafficLevel = 1;
+  seed = SEEDS[0];
+  freqHz = 100;
+  sourceSignal = null;
+  for (const c of el('scenarios').children) c.classList.remove('active');
+  document.getElementById('btn-synthetic')?.classList.add('active');
+  for (const c of el('traffic').children) {
+    const cb = c as HTMLButtonElement;
+    cb.classList.toggle('active', Number(cb.dataset['level'] ?? NaN) === 1);
+  }
+  for (const c of el('waves').children) c.classList.toggle('active', (c as HTMLButtonElement).textContent === '100 Hz');
+  document.querySelectorAll('.tour-on').forEach((n) => n.classList.remove('tour-on'));
+  sessionBest.reset();
+  tourHost.innerHTML = ''; // close any open tour card
+  rerun(); // fresh readouts
+
+});
+
 // traffic mix picker
 const REAL_SOURCES: { file: string; label: string; note: string }[] = [
   { file: 'traffic-city-highway', label: 'City highway', note: 'CC0 · sotiris_laskaris (Freesound #563698)' },
@@ -281,6 +312,7 @@ async function loadRecording(file: string): Promise<Float32Array> {
   return sig;
 }
 const btnSynthetic = document.createElement('button');
+btnSynthetic.id = 'btn-synthetic';
 btnSynthetic.textContent = 'Synthetic traffic';
 btnSynthetic.classList.add('active');
 btnSynthetic.title = 'The seeded synthetic source (the test bed)';
