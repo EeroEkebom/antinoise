@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { CONFIG } from '../../src/core/rng.js';
-import { waveIntensity, zoneDepthDb, quietBandMeters, type Geometry } from '../../src/ui/fieldViz.js';
+import { waveIntensity, zoneDepthDb, quietBandMeters, photoPatchPositions, type Geometry, type PhotoDerived } from '../../src/ui/fieldViz.js';
+import { WORLD } from '../../src/ui/geometry.js';
 
 const geo: Geometry = { towerMeters: 20, zoneMeters: 30, standoffMeters: 5, y: 0.5, trafficLevel: 1, speakers: 1 };
 const CORRIDOR_Y = 20; // world center (WORLD.heightMeters = 40)
@@ -64,5 +65,20 @@ describe('quietBandMeters — the number the "widest band" goal optimizes', () =
     const g5: Geometry = { ...geo, speakers: 5 };
     expect(quietBandMeters(g5, 100)).toBeGreaterThan(quietBandMeters(g1, 100));
     expect(quietBandMeters(g1, 630)).toBeLessThan(quietBandMeters(g1, 100));
+  });
+});
+
+describe('photoPatchPositions — photo-derived map accents (styling only)', () => {
+  test('zone boxes at photo fx → patch x-meters grow across the corridor, clamped to world/geometry', () => {
+    const derived: PhotoDerived = { boxes: [{ x1: 0, y1: 0, x2: 10, y2: 10 }, { x1: 640, y1: 0, x2: 660, y2: 10 }], frameW: 1280, frameH: 800 };
+    const patches = photoPatchPositions(derived, geo);
+    expect(patches).toHaveLength(2);
+    expect(patches[0].xm).toBeLessThan(patches[1].xm);
+    for (const p of patches) {
+      expect(p.xm).toBeGreaterThanOrEqual(8);
+      expect(p.xm).toBeLessThanOrEqual(56);
+      expect(p.ym).toBeGreaterThan(0);
+      expect(p.ym).toBeLessThan(WORLD.heightMeters);
+    }
   });
 });

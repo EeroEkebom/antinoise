@@ -79,7 +79,7 @@ export function interpretPlacement(
     zoneMeters: Math.round(zoneMeters * 10) / 10,
     standoffMeters: Math.round(standoffMeters * 10) / 10,
     speakers,
-    note: `${zoneFound ? '' : 'no protected area (open ground/sidewalk) found — zone defaulted; '}from the photo (${where}): zone ≈ ${zoneMeters.toFixed(0)} m out, ${speakers} array nodes — confirm before applying`,
+    note: `${zoneFound ? '' : 'no protected area (open ground/sidewalk) found — zone defaulted; '}from the photo (${where}): zone ≈ ${zoneMeters.toFixed(0)} m out, ${speakers} array nodes — placement follows the photo; run the AI assistant to tune the depth. Confirm before applying`,
     fallback: false,
   };
 }

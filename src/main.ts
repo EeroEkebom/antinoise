@@ -2,7 +2,7 @@ import './style.css';
 import { runScenario, type ScenarioConfig, type ScenarioResult } from './core/scenario.js';
 import { prepareAudioBuffers } from './audio/bridge.js';
 import { validateGeometry, geometryToScenarioConfig, leadMs, type Geometry } from './ui/geometry.js';
-import { renderField, hitTest, pxToMeters, quietBandMeters, type Marker } from './ui/fieldViz.js';
+import { renderField, hitTest, pxToMeters, quietBandMeters, type PhotoDerived, type Marker } from './ui/fieldViz.js';
 import { createAgentConsole } from './ui/agentConsole.js';
 import { proposeTurn, applyDecision } from './brain/loop.js';
 import type { AgentDecision, AgentGoal, Brain } from './brain/brain.js';
@@ -211,10 +211,18 @@ function rebuildAudioLoops(r: ScenarioResult): Promise<void> {
   });
 }
 
+// Meta muse-image-1.0 backdrop (one generated asset; road cropped out in fieldViz — see TEXTURE_ROAD_END)
+// + photo-derived accents state (set after a successful photo segmentation; cleared on reset/URL change)
+const mapTexture = new Image();
+mapTexture.src = 'map-texture.webp';
+mapTexture.onload = () => draw();
+mapTexture.onerror = () => draw(); // texture missing → plain dark map, physics unchanged
+let photoDerived: PhotoDerived | null = null;
+
 function draw(highlight: Marker | null = null): void {
   const canvas = el<HTMLCanvasElement>('field');
   if (!canvas) return;
-  renderField(canvas, geo, { highlight, freqHz });
+  renderField(canvas, geo, { highlight, freqHz, texture: mapTexture, photoDerived });
 }
 
 async function initAudio(): Promise<void> {
@@ -296,6 +304,7 @@ el('btn-reset').addEventListener('click', () => {
   el('review').hidden = true;
   el('agent-ab').hidden = true;
   agentConsole.setStatus('idle', false);
+  photoDerived = null;
   tourHost.innerHTML = ''; // close any open tour card
   rerun(); // fresh readouts
 
@@ -466,6 +475,8 @@ function syncPhotoPreview(): void {
   if (!url) {
     previewEl.hidden = true;
     previewEl.src = '';
+    photoDerived = null;
+    draw(); // map back to the plain backdrop — the photo's accents leave with its input
     return;
   }
   if (previewEl.src !== url) previewEl.src = url;
@@ -524,6 +535,9 @@ el('btn-seg').addEventListener('click', async () => {
     const frameW = previewEl.naturalWidth || 1200;
     const frameH = previewEl.naturalHeight || 800;
     proposal = interpretPlacement({ road, zone }, frameW, frameH);
+    // the map gets the photo-derived accents: where the protected areas sit along the corridor (stylized)
+    photoDerived = road.length > 0 ? { boxes: (zone.length > 0 ? zone : road).map((b) => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 })), frameW, frameH } : null;
+    draw();
     noteEl.textContent = proposal.note;
     agentConsole.log({ state: 'photo segmented', decision: 'placement proposed', applied: `tower ${proposal.towerMeters} m · zone ${proposal.zoneMeters} m · ${proposal.speakers} nodes` });
     el<HTMLButtonElement>('btn-apply-place').disabled = proposal.fallback;

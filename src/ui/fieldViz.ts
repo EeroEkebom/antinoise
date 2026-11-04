@@ -76,11 +76,38 @@ export function quietBandMeters(geo: Geometry, freqHz: number): number {
   return spacingOf(geo) * (geo.speakers - 1) + lam * 1.5;
 }
 
+/* ---- photo-derived accents (styling only) ---- */
+
+/** Protected areas (open ground / sidewalk boxes) SAM found in the analyzed street photo,
+ *  normalized to the frame. Positions of the quiet patches on the map: along-the-road
+ *  placement from the photo's relative x, at the corridor midline. Stylized — not photogrammetry. */
+export type PhotoDerived = { boxes: Array<{ x1: number; y1: number; x2: number; y2: number }>; frameW: number; frameH: number };
+
+/** Patch centers in METERS for the map: photo fx 0..1 (as seen along the road) → corridor x 8..56 m.
+ *  Pure + tested; renderField draws the pretty part around these. */
+export function photoPatchPositions(derived: PhotoDerived, geo: Geometry): Array<{ xm: number; ym: number }> {
+  const maxAlong = Math.max(geo.zoneMeters, 20);
+  return derived.boxes.map((b) => {
+    const cx = (b.x1 + b.x2) / 2 / derived.frameW;
+    return { xm: 8 + Math.min(Math.max(cx, 0), 1) * Math.max(maxAlong - 16, 0), ym: WORLD.heightMeters / 2 };
+  });
+}
+
+// the generated backdrop's own painted road ends here (fraction of its width) — we crop it out
+// so the scale-honest 6 m road band drawn by the app is the ONLY road on the map
+const TEXTURE_ROAD_END = 0.185;
+
 /** Full repaint: field heat-map + 1D cross-section strip. Call on geometry/frequency change only. */
 export function renderField(
   canvas: HTMLCanvasElement,
   geo: Geometry,
-  opts: { highlight?: Marker | null; infeasible?: string | null; freqHz: number } = { freqHz: 100 },
+  opts: {
+    highlight?: Marker | null;
+    infeasible?: string | null;
+    freqHz: number;
+    texture?: HTMLImageElement | null;
+    photoDerived?: PhotoDerived | null;
+  } = { freqHz: 100 },
 ): void {
   const c2d = canvas.getContext('2d');
   if (!c2d) return;
@@ -95,6 +122,38 @@ export function renderField(
   const corridorY = h / 2; // drawing coords: corridor midline
   const stripTop = Math.round(h * 0.78);
   const stripH = h - stripTop - 24;
+
+  const roadPx = Math.ceil(mx(ROADM, w));
+
+  // Meta muse-image-1.0 backdrop (cropped past its own road; the app's road band follows)
+  const tex = opts.texture;
+  if (tex && tex.complete && tex.naturalWidth > 0) {
+    const sx = tex.naturalWidth * TEXTURE_ROAD_END;
+    c2d.drawImage(tex, sx, 0, tex.naturalWidth - sx, tex.naturalHeight, roadPx + 2, 0, w - roadPx - 2, stripTop);
+  }
+
+  // photo-derived protected-area patches (before the heat so the data layer stays on top)
+  if (opts.photoDerived) {
+    for (const p of photoPatchPositions(opts.photoDerived, geo)) {
+      const px = mx(p.xm, w);
+      const py = (p.ym / WORLD.heightMeters) * stripTop;
+      const g = c2d.createRadialGradient(px, py, 4, px, py, 34);
+      g.addColorStop(0, 'rgba(140,200,135,0.5)');
+      g.addColorStop(1, 'rgba(140,200,135,0)');
+      c2d.fillStyle = g;
+      c2d.fillRect(px - 34, py - 34, 68, 68);
+      // a little tree on the pool — readable at a glance, stylized like the backdrop
+      c2d.fillStyle = 'rgba(96,150,90,0.85)';
+      c2d.beginPath();
+      c2d.arc(px, py, 6, 0, Math.PI * 2);
+      c2d.fill();
+      c2d.fillStyle = 'rgba(13,16,23,0.55)';
+      c2d.fillRect(px - 1, py + 4, 2, 7);
+    }
+    c2d.fillStyle = 'rgba(217,222,232,0.75)';
+    c2d.font = '10px sans-serif';
+    c2d.fillText('green pools + trees: protected areas derived from the analyzed photo (stylized)', roadPx + 10, 16);
+  }
 
   // heat-map field at the chosen frequency, adaptive step (λ in pixels)
   const lam = CONFIG.SPEED_OF_SOUND / FREQ;
@@ -111,18 +170,40 @@ export function renderField(
     }
   }
 
-  // road band
+  // road band (scale-honest: this strip IS the 6 m road; the backdrop's texture road is cropped away)
   c2d.fillStyle = '#2a3140';
-  c2d.fillRect(0, 0, Math.ceil(mx(ROADM, w)), stripTop);
+  c2d.fillRect(0, 0, roadPx, stripTop);
   c2d.fillStyle = '#e6a23c';
   for (let y = 8; y < stripTop; y += 26) c2d.fillRect(Math.ceil(mx(ROADM / 3, w)), y, 2, 14);
 
+  const hexA = (hx: string, a: string): string => `${hx}${a}`; // 6-digit hex → 8-digit hex with alpha
   const marker = (px: number, py: number, label: string, color: string, hl: boolean, above = true): void => {
+    // soft halo first — the "cooler" sensor/array/zone look; hl markers get a wider pulse ring
+    const r = hl ? 26 : 18;
+    const halo = c2d.createRadialGradient(px, py, 2, px, py, r);
+    halo.addColorStop(0, hexA(color, '55'));
+    halo.addColorStop(1, hexA(color, '00'));
+    c2d.fillStyle = halo;
+    c2d.beginPath();
+    c2d.arc(px, py, r, 0, Math.PI * 2);
+    c2d.fill();
+    if (hl) {
+      c2d.strokeStyle = hexA(color, '88');
+      c2d.setLineDash([3, 4]);
+      c2d.beginPath();
+      c2d.arc(px, py, r - 4, 0, Math.PI * 2);
+      c2d.stroke();
+      c2d.setLineDash([]);
+    }
     c2d.beginPath();
     c2d.arc(px, py, hl ? 11 : 8, 0, Math.PI * 2);
     c2d.fillStyle = color;
     c2d.fill();
-    c2d.font = '12px sans-serif';
+    c2d.strokeStyle = 'rgba(13,16,23,0.6)';
+    c2d.lineWidth = 2;
+    c2d.stroke();
+    c2d.lineWidth = 1;
+    c2d.font = 'bold 12px sans-serif';
     c2d.fillStyle = '#d9dee8';
     c2d.fillText(label, px + 13, py + (above ? -12 : 20));
   };

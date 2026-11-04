@@ -77,6 +77,8 @@ edges, all visible in the sim rather than asserted:
   **Pixabay Content License** (no attribution required, credited anyway). Photos are inlined as data
   URIs by the browser before segmentation, so no third-party host can block the model's fetcher.
 - Models: Meta's **Muse Spark Open** (open weights, via Baseten) and **SAM 3.1** (Meta Model API).
+- Field-map backdrop generated with Meta's **Muse Image 1.0** (Meta Model API) — one stylized
+  top-down corridor illustration used under the physics layers (which are always drawn by the app).
 
 ## Licence
 
