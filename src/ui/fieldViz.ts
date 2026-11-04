@@ -354,13 +354,16 @@ export function renderField(
   for (const off of nodeOffsets(geo)) {
     const nodeY = corridorY + off * yScale;
     const half = lam * 0.75 * yScale;
-    c2d.fillStyle = 'rgba(79,209,197,0.12)';
+    // the band paints in the palette's quiet pole — visible over the meadow, consistent with the contour pools
+    const [qr, qg, qb] = pal.quiet;
+    c2d.fillStyle = `rgba(${qr},${qg},${qb},0.2)`;
     c2d.fillRect(speakerX, nodeY - half, w - speakerX, half * 2);
   }
   // union outline + width number — the node/spacing effect, measurable at a glance
   const unionHalf = ((spacingOf(geo) * (geo.speakers - 1)) / 2 + lam * 0.75) * yScale;
-  c2d.strokeStyle = 'rgba(79,209,197,0.7)';
-  c2d.lineWidth = 1.5;
+  const [ur, ug, ub] = pal.quiet;
+  c2d.strokeStyle = `rgba(${ur},${ug},${ub},0.9)`;
+  c2d.lineWidth = 2;
   c2d.strokeRect(speakerX, corridorY - unionHalf, w - speakerX, unionHalf * 2);
   const bandWm = quietBandMeters(geo, FREQ);
   textSharp(
