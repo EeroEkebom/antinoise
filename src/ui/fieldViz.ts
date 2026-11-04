@@ -97,6 +97,89 @@ export function photoPatchPositions(derived: PhotoDerived, geo: Geometry): Array
 // so the scale-honest 6 m road band drawn by the app is the ONLY road on the map
 const TEXTURE_ROAD_END = 0.185;
 
+/** Low-res heat buffer — reused across repains so scaling stays smooth. */
+const heatBuf: { cv: HTMLCanvasElement | null; ctx: CanvasRenderingContext2D | null } = { cv: null, ctx: null };
+
+/* Heat field styles (no continuous fades — user finding: fades over the meadow smear and strain):
+ * 'contour' = flat posterized bands + crisp outline around the destructive region (the real
+ *   "this area hears cancellation" boundary — the most meaningful line on the map)
+ * 'flat'    = same posterized bands, no outlines
+ * legacy    = old alpha-fade field (kept for A/B; not linked from UI) */
+type HeatStyle = 'contour' | 'flat' | 'legacy';
+/** Heat style — default 'flat': sparse posterized pools, zero fades (user finding: continuous
+ *  fades smear over the meadow backdrop and strain the eyes; contour outlines hatch near the road). */
+export function heatStyle(): HeatStyle {
+  try {
+    const s = new URLSearchParams(window.location.search).get('style');
+    return s === 'contour' || s === 'legacy' ? s : 'flat';
+  } catch {
+    return 'flat';
+  }
+}
+
+/** Flat alpha steps for the posterized field — SPARSE on purpose: only regions with genuinely
+ *  strong interference get paint; the meadow stays clean where nothing meaningful happens. */
+function posterStep(v: number, loud: boolean): number {
+  const steps: number[] = loud ? [0.12, 0.24] : [0.18, 0.34];
+  const t = v > 0.6 ? 1 : v > 0.38 ? 0 : -1;
+  return t === -1 ? 0 : steps[t];
+}
+
+/** Marching squares on a {0,1} sign grid — hairline segments of the destructive-region boundary. */
+export function quietContours(mask: { grid: Uint8Array; w: number; h: number }): Array<[number, number, number, number]> {
+  const segs: Array<[number, number, number, number]> = [];
+  const at = (c: number, r: number): number => (c < 0 || r < 0 || c >= mask.w || r >= mask.h) ? 0 : mask.grid[r * mask.w + c];
+  for (let r = 0; r < mask.h; r++) {
+    for (let c = 0; c < mask.w; c++) {
+      const tl = at(c, r), tr = at(c + 1, r), bl = at(c, r + 1), br = at(c + 1, r + 1);
+      const code = (tl << 3) | (tr << 2) | (br << 1) | bl;
+      const x = c + 0.5, y = r + 0.5; // mid-edge segments are fine at hairline scale
+      const push = (x1: number, y1: number, x2: number, y2: number): void => { segs.push([x1, y1, x2, y2]); };
+      switch (code) {
+        case 0b1000: push(x - 0.5, y, x, y - 0.5); break;
+        case 0b0100: push(x, y - 0.5, x + 0.5, y); break;
+        case 0b0010: push(x + 0.5, y, x, y + 0.5); break;
+        case 0b0001: push(x, y + 0.5, x - 0.5, y); break;
+        case 0b1100: push(x, y - 0.5, x, y + 0.5); break;
+        case 0b0110: push(x - 0.5, y, x + 0.5, y); break;
+        case 0b0011: push(x - 0.5, y, x, y + 0.5); break;
+        case 0b1001: push(x, y - 0.5, x - 0.5, y); break;
+        case 0b0111: push(x, y - 0.5, x - 0.5, y); break;
+        case 0b1101: push(x - 0.5, y, x, y + 0.5); break;
+        case 0b1110: push(x + 0.5, y, x, y + 0.5); break;
+        case 0b1011: push(x, y - 0.5, x + 0.5, y); break;
+        case 0b0101: case 0b1010: // saddle: both verticals (visual continuity beats a choice here)
+          push(x, y - 0.5, x, y + 0.5); break;
+      }
+    }
+  }
+  return segs;
+}
+
+/* ---- heat palette (validated with the dataviz palette validator vs the meadow surface) ----
+ * diverging polarity: destructive (quiet) pole, constructive (louder) pole; magnitude lives in alpha. */
+export const HEAT_PALETTES = {
+  a: { quiet: [69, 105, 184], loud: [217, 126, 102], name: 'calm blue / soft coral' },
+  b: { quiet: [69, 105, 184], loud: [194, 92, 142], name: 'calm blue / plum' },
+  c: { quiet: [42, 72, 118], loud: [190, 160, 90], name: 'deep pools / sand' },
+  d: { quiet: [79, 209, 197], loud: [240, 120, 90], name: 'classic (previous)' },
+} as const;
+export type HeatPaletteKey = keyof typeof HEAT_PALETTES;
+
+function heatColorKey(): { key: HeatPaletteKey; rgb: { quiet: readonly number[]; loud: readonly number[] }; quietA: number; loudA: number } {
+  try {
+    const q = new URLSearchParams(window.location.search).get('palette');
+    const key = (q && q in HEAT_PALETTES ? q : 'a') as HeatPaletteKey;
+    const rgb = HEAT_PALETTES[key];
+    // the modern pairs paint softer; the classic pair keeps its old alphas for a fair A/B
+    const quietA = key === 'd' ? 0.55 : 0.5;
+    const loudA = key === 'd' ? 0.35 : 0.3;
+    return { key, rgb, quietA, loudA };
+  } catch {
+    return { key: 'a', rgb: HEAT_PALETTES.a, quietA: 0.5, loudA: 0.3 };
+  }
+}
+
 /** Full repaint: field heat-map + 1D cross-section strip. Call on geometry/frequency change only. */
 export function renderField(
   canvas: HTMLCanvasElement,
@@ -155,18 +238,62 @@ export function renderField(
     c2d.fillText('green pools + trees: protected areas derived from the analyzed photo (stylized)', roadPx + 10, 16);
   }
 
-  // heat-map field at the chosen frequency, adaptive step (λ in pixels)
+  // heat-map field at the chosen frequency — three styles: contour (flat bands + destructive-region
+  // outline), flat (bands only), legacy (the old alpha fade). Posterization kills the smear.
+  const { rgb: pal, quietA, loudA } = heatColorKey();
+  const style = heatStyle();
   const lam = CONFIG.SPEED_OF_SOUND / FREQ;
   const pxPerMeter = w / WORLD.widthMeters;
   const step = Math.max(2, Math.round((lam * pxPerMeter) / 10));
-  for (let py = 0; py < stripTop; py += step) {
-    for (let px = 0; px < w; px += step) {
-      const xm = (px / w) * WORLD.widthMeters;
-      const ym = (py / stripTop) * WORLD.heightMeters;
-      const { sum } = waveIntensity(xm, ym, geo, (corridorY / stripTop) * WORLD.heightMeters, FREQ);
-      const a = Math.min(Math.abs(sum) * 2.4, 1);
-      c2d.fillStyle = sum <= 0 ? `rgba(79,209,197,${a * 0.55})` : `rgba(240,120,90,${a * 0.35})`;
-      c2d.fillRect(px, py, step, step);
+  const cols = Math.ceil(w / step);
+  const rows = Math.ceil(stripTop / step);
+  if (!heatBuf.cv) heatBuf.cv = document.createElement('canvas');
+  const cv = heatBuf.cv as HTMLCanvasElement;
+  if (cv.width !== cols || cv.height !== rows) {
+    cv.width = cols;
+    cv.height = rows;
+    heatBuf.ctx = cv.getContext('2d');
+  }
+  const hctx = heatBuf.ctx;
+  if (hctx) {
+    const img = hctx.createImageData(cols, rows);
+    const mask = { grid: new Uint8Array(cols * rows), w: cols, h: rows };
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const xm = ((col + 0.5) * step / w) * WORLD.widthMeters;
+        const ym = ((row + 0.5) * step / stripTop) * WORLD.heightMeters;
+        const { sum } = waveIntensity(xm, ym, geo, (corridorY / stripTop) * WORLD.heightMeters, FREQ);
+        const a = Math.min(Math.abs(sum) * 2.4, 1);
+        const [r, g, b] = sum <= 0 ? pal.quiet : pal.loud;
+        const alpha = style === 'legacy' ? a * (sum <= 0 ? quietA : loudA) : posterStep(a, sum > 0);
+        if (style !== 'legacy' && sum <= 0 && posterStep(a, false) > 0) mask.grid[row * cols + col] = 1; // strong quiet pockets only
+        const i = (row * cols + col) * 4;
+        img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = alpha * 255;
+      }
+    }
+    hctx.putImageData(img, 0, 0);
+    // poster style: hard pixel blocks (smoothing OFF); legacy: bilinear soft
+    c2d.imageSmoothingEnabled = style === 'legacy';
+    if (style === 'legacy') c2d.imageSmoothingQuality = 'high';
+    c2d.drawImage(cv, 0, 0, cols, rows, 0, 0, cols * step, rows * step);
+    if (style === 'contour') {
+      // the one meaningful line: the boundary of the region that hears cancellation
+      const segs = quietContours(mask);
+      c2d.strokeStyle = 'rgba(13,16,23,0.45)';
+      c2d.lineWidth = 1;
+      c2d.beginPath();
+      for (const [x1, y1, x2, y2] of segs) {
+        c2d.moveTo((x1 * step), (y1 * step));
+        c2d.lineTo((x2 * step), (y2 * step));
+      }
+      c2d.stroke();
+      c2d.strokeStyle = `rgba(${pal.quiet[0]},${pal.quiet[1]},${pal.quiet[2]},0.7)`;
+      c2d.beginPath();
+      for (const [x1, y1, x2, y2] of segs) {
+        c2d.moveTo((x1 * step) - 0.3, (y1 * step));
+        c2d.lineTo((x2 * step) - 0.3, (y2 * step));
+      }
+      c2d.stroke();
     }
   }
 
