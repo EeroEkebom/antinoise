@@ -72,12 +72,14 @@ export function interpretPlacement(
   const towerMeters = clamp(towerMax * 0.7, 5, 59);
   const speakers = zoneMeters > 40 ? 5 : zoneMeters > 25 ? 3 : 2;
   const where = horizontalRoad ? 'road at the bottom of the photo' : 'road on the side of the photo';
+  // honesty: when no protected area was found, the zone value is a default, not a photo measurement
+  const zoneFound = zone !== null;
   return {
     towerMeters: Math.round(towerMeters * 10) / 10,
     zoneMeters: Math.round(zoneMeters * 10) / 10,
     standoffMeters: Math.round(standoffMeters * 10) / 10,
     speakers,
-    note: `from the photo (${where}): zone ≈ ${zoneMeters.toFixed(0)} m out, ${speakers} array nodes — confirm before applying`,
+    note: `${zoneFound ? '' : 'no protected area (open ground/sidewalk) found — zone defaulted; '}from the photo (${where}): zone ≈ ${zoneMeters.toFixed(0)} m out, ${speakers} array nodes — confirm before applying`,
     fallback: false,
   };
 }

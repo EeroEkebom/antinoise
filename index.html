@@ -102,7 +102,7 @@
 
       <section id="photo" class="card">
         <h2>Place from a photo (SAM 3.1)</h2>
-        <p class="hint">A street photo is analyzed by SAM 3.1: it finds the road and the open ground, and proposes where the sensor tower, cancel array and quiet zone could sit. <button id="btn-example" class="mini">Use example photo</button></p>
+        <p class="hint">A street photo is analyzed by SAM 3.1 (Meta's Model API): it finds the road and the protected area beside it — open ground, falling back to sidewalks — and proposes where the sensor tower, cancel array and quiet zone could sit. Any photo URL works (the image is inlined, so no host can block the model's fetch). <button id="btn-example" class="mini">Use example photo</button></p>
         <img id="photo-preview" alt="The street photo to place from" hidden>
         <div class="row">
           <input id="photo-url" class="grow" type="url" placeholder="Paste a public street-photo URL…" />

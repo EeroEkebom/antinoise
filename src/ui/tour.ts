@@ -28,7 +28,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     target: 'photo',
     title: '5 · Place from a photo',
-    body: 'Example: take a street photo where the road runs along the bottom. SAM 3.1 segments the road and the open ground above it; the placement engine converts the photo\'s proportions to meters and proposes — say — a zone ~35 m from the road with 3 array nodes. The note explains its proposal; you confirm with Apply, then the field re-runs with the new geometry. You can also just paste your own photo URL.',
+    body: 'Example: a street photo with the road running along the bottom. SAM 3.1 (Meta\'s Model API) segments the road and — with a sidewalk fallback — the protected area beside it; the placement engine converts the photo\'s proportions to meters and proposes, say, how far out the zone belongs and how many array nodes it needs. The note explains its proposal and says when a value defaulted instead of being measured; you confirm with Apply, then the field re-runs with the new geometry. You can also paste your own photo URL.',
   },
 ];
 

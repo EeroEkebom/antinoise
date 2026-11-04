@@ -457,7 +457,7 @@ for (const f of [63, 100, 250, 630]) {
 }
 
 // photo → SAM 3.1 → placement proposal (user confirms before applying)
-const EXAMPLE_PHOTO = 'https://upload.wikimedia.org/wikipedia/commons/9/9b/Traffic_jam_Sao_Paulo_09_2006_30a.jpg';
+const EXAMPLE_PHOTO = 'https://cdn.pixabay.com/photo/2019/08/23/22/40/city-4426650_1280.jpg'; // Pixabay Content License — São Paulo viaduct, daytime traffic
 // photo preview: the uploaded/pasted photo shows above the placement box, suitably sized
 const previewEl = el<HTMLImageElement>('photo-preview');
 previewEl.addEventListener('error', () => { previewEl.hidden = true; });
@@ -477,6 +477,24 @@ el('btn-example').addEventListener('click', () => {
   syncPhotoPreview();
 });
 let proposal: PlacementProposal | null = null;
+// SAM's server-side fetcher rejects several popular hosts (pixabay, unsplash…) — but it accepts
+// inline data: URIs. Convert the image in the browser when CORS allows; fall back to the raw URL.
+async function samImageUrl(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return url;
+    const blob = await res.blob();
+    if (blob.size > 4_000_000) return url; // too big to inline — let the server fetch the URL itself
+    return await new Promise<string>((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = () => resolve(url);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return url; // CORS-blocked → the server fetches the URL itself (works for Wikimedia etc.)
+  }
+}
 el('btn-seg').addEventListener('click', async () => {
   const b = el<HTMLButtonElement>('btn-seg');
   const noteEl = el<HTMLParagraphElement>('place-note');
@@ -488,14 +506,19 @@ el('btn-seg').addEventListener('click', async () => {
   b.disabled = true;
   noteEl.textContent = 'segmenting with SAM 3.1 (two passes: road, open ground)…';
   try {
+    const imageUrl = await samImageUrl(url); // inline when possible — no host restrictions
     const seg = async (prompt: string): Promise<string> => {
-      const r = await fetch('/api/sam', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: url, prompt }) });
+      const r = await fetch('/api/sam', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl, prompt }) });
       const j = (await r.json()) as { ok: boolean; output?: string; reason?: string };
       if (!j.ok) throw new Error(j.reason ?? 'segmentation failed');
       return j.output ?? '';
     };
-    const road = parseSamBoxes(await seg('road'));
-    const zone = parseSamBoxes(await seg('open ground'));
+    // two passes in parallel; the zone pass falls back to 'sidewalk' — SAM reliably segments
+    // sidewalks in street scenes where 'open ground' comes back empty (city photos never had trees-to-protect open ground)
+    const [roadRaw, zoneRaw] = await Promise.all([seg('road'), seg('open ground')]);
+    const road = parseSamBoxes(roadRaw);
+    let zone = parseSamBoxes(zoneRaw);
+    if (zone.length === 0) zone = parseSamBoxes(await seg('sidewalk'));
     // SAM boxes are pixel-space of the original photo — real dimensions from the preview
     // (a 1×1 fallback keeps the fraction bounded; the previous 1,1 call made every proposal clamp)
     const frameW = previewEl.naturalWidth || 1200;

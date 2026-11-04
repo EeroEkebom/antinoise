@@ -109,12 +109,17 @@ Think of the assistant as **an AI engineer who tunes the system for you**:
 
 A worked example:
 
-1. Click **Use example photo** (a street photo with the road along the bottom, from Wikimedia Commons).
-2. **Segment & propose placement →** — SAM 3.1 segments the image twice (once for "road",
-   once for "open ground") and returns the pixel boxes; the placement engine converts the
-   photo's proportions to meters.
-3. A proposal appears — e.g. *"from the photo (road at the bottom): zone ≈ 35 m out, 3 array
-   nodes — confirm before applying"* — and the agent console logs it.
+1. Click **Use example photo** (a daytime São Paulo street photo with the road along the
+   bottom — Pixabay Content License, free use).
+2. **Segment & propose placement →** — SAM 3.1 (on Meta's Model API) segments the image in
+   parallel passes — "road", plus "open ground" with a "sidewalk" fallback (the urban protected
+   area) — and returns the pixel boxes; the placement engine converts the photo's proportions to
+   meters. Any photo URL works the same way: the browser inlines the image before sending it, so
+   no host is off-limits. When nothing protectable is found, the note says the zone defaulted
+   instead of pretending it measured.
+3. A proposal appears — e.g. *"from the photo (road at the bottom of the photo): zone ≈ 21 m
+   out, 2 array nodes — confirm before applying"* — and the agent console logs it.
+   (Numbers vary with the photo; sidewalk zones that touch the road map to the small end.)
 4. **Apply proposal** re-runs the field with that placement; the map, readouts and audio update.
 
 You can also paste any public street-photo URL of your own — the proposal is derived from

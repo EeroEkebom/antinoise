@@ -73,6 +73,9 @@ edges, all visible in the sim rather than asserted:
 - Real traffic recordings (optional source presets), all **CC0 / public domain** via Freesound
   (credited anyway): *City highway busy* (sotiris_laskaris #563698), *Motorway M6* (JW_audio #826246),
   *US highway wet pavement* (reg7783 #632640) — trimmed to 45 s, decimated to 16 kHz mono.
+- Example photo (optional SAM 3.1 demo input): *São Paulo viaduct* by pixabay.com — free use under the
+  **Pixabay Content License** (no attribution required, credited anyway). Photos are inlined as data
+  URIs by the browser before segmentation, so no third-party host can block the model's fetcher.
 - Models: Meta's **Muse Spark Open** (open weights, via Baseten) and **SAM 3.1** (Meta Model API).
 
 ## Licence

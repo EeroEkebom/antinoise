@@ -110,8 +110,12 @@ function samProxyPlugin(): Plugin {
   };
 }
 
-/** Dev-only SSRF guard: the SAM API fetches the given URL — refuse localhost/intranet targets. */
+/** Dev-only SSRF guard: the SAM API fetches the given URL — refuse localhost/intranet targets.
+ *  Inline data: URIs are allowed (nothing is fetched server-side) within a sane size cap. */
 function guardSamUrl(raw: string): string | null {
+  if (raw.startsWith('data:image/')) {
+    return raw.length <= 8 * 1_000_000 ? raw : null; // ≤ ~6 MB of base64 pixels
+  }
   let u: URL;
   try {
     u = new URL(raw);
