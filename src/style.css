@@ -146,6 +146,25 @@ button.mini { padding: 1px 8px; font-size: 0.75rem; }
   border-radius: var(--radius);
   border: 1px solid var(--surface-2);
 }
+/* dev-only cursor visualizer for tab-capture takes (?cursor=1) */
+#cursor-dot {
+  position: fixed; width: 0; height: 0; z-index: 999999; pointer-events: none; display: none;
+}
+#cursor-dot::after {
+  content: '➤';
+  position: absolute;
+  font-size: 18px;
+  transform: rotate(-45deg) translate(-2px, -14px);
+  color: #fff;
+  text-shadow: 0 0 3px #000, 0 0 6px #000;
+}
+
+/* dev-only take recorder button (?record=1) — removed from the DOM once recording starts */
+#rec-btn {
+  position: fixed; top: 10px; right: 10px; z-index: 999998; background: #8c1d1d; color: #fff;
+  border-color: #d05050; padding: 10px 18px; font-size: 14px;
+}
+
 #photo-preview[hidden] { display: none; }
 
 .legend { justify-content: flex-start; }

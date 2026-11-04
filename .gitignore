@@ -25,3 +25,8 @@ dist-ssr
 
 # local key-file paths (machine-specific, never in the public repo)
 keypaths.local.json
+vids/
+*.mov
+*.mp4
+*.m4v
+vids/

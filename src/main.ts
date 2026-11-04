@@ -33,6 +33,61 @@ let sourceKey = 'synthetic'; // which traffic source owns the session-best entry
 let result: ScenarioResult | null = null;
 let dragging: Marker | null = null;
 
+// dev-only cursor visualizer (?cursor=1): browser tab capture excludes the system cursor, so the
+// demo takes paint a pointer that follows the REAL mouse position — honest cue, no system privileges
+if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('cursor') === '1') {
+  const dot = document.createElement('div');
+  dot.id = 'cursor-dot';
+  document.body.appendChild(dot);
+  addEventListener('pointermove', (e) => {
+    dot.style.left = String(e.clientX) + 'px';
+    dot.style.top = String(e.clientY) + 'px';
+    dot.style.display = 'block';
+  }, { passive: true });
+}
+
+// dev-only take recorder (?record=1): capture THIS tab (picture + tab audio) → upload to /api/capture.
+// The REC button removes itself once recording starts; the driver ends the take via window.__stopTake().
+if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('record') === '1') {
+  const btn = document.createElement('button');
+  btn.id = 'rec-btn';
+  btn.textContent = '● REC';
+  document.body.appendChild(btn);
+  (window as unknown as Record<string, unknown>).__recOn = false;
+  (window as unknown as Record<string, unknown>).__hasAudio = null;
+  (window as unknown as Record<string, unknown>).__stopTake = () => {
+    const w = window as unknown as { __stop?: () => void };
+    w.__stop?.();
+  };
+  btn.addEventListener('click', async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'browser' },
+        audio: true,
+        preferCurrentTab: true,
+      } as MediaStreamConstraints & { displaySurface?: string });
+      const hasAudio = stream.getAudioTracks().length > 0;
+      (window as unknown as Record<string, unknown>).__hasAudio = hasAudio;
+      const chunks: Blob[] = [];
+      const rec = new MediaRecorder(stream, { mimeType: 'video/mp4', videoBitsPerSecond: 8_000_000 });
+      rec.ondataavailable = (e) => { if ((e as BlobEvent).data.size) chunks.push((e as BlobEvent).data); };
+      btn.remove(); // gone from the take
+      const w = window as unknown as { __recOn: boolean; __stop?: (() => void) | null; __hasAudio: boolean | null; __uploaded?: boolean };
+      w.__recOn = true;
+      w.__stop = () => rec.stop();
+      rec.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'video/mp4' });
+        await fetch('/api/capture', { method: 'POST', headers: { 'Content-Type': 'video/mp4' }, body: blob });
+        w.__recOn = false;
+        w.__uploaded = true;
+      };
+      rec.start();
+    } catch {
+      (window as unknown as Record<string, unknown>).__recRefused = true;
+    }
+  });
+}
+
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
 }
@@ -289,6 +344,7 @@ el('btn-reset').addEventListener('click', () => {
   sourceKey = 'synthetic';
   freqHz = 100;
   sourceSignal = null;
+  el('traffic-note').textContent = 'Source: the seeded synthetic traffic (the test bed — fully reproducible). Cancelled stream is at Normal level.';
   for (const c of el('scenarios').children) c.classList.remove('active');
   document.getElementById('btn-synthetic')?.classList.add('active');
   for (const c of el('traffic').children) {
@@ -798,18 +854,29 @@ el('btn-revert-agent').addEventListener('click', () => {
   agentReview = null;
 });
 
-// drag interaction on the field
+// drag interaction on the field (offsets computed from clientX/Y — same value as offsetX for real
+// pointers, but synthetic driver events carry client coords only)
 const canvas = el<HTMLCanvasElement>('field');
+const canvasOffset = (ev: PointerEvent): { x: number; y: number } => {
+  const b = canvas.getBoundingClientRect();
+  return { x: ev.clientX - b.left, y: ev.clientY - b.top };
+};
 canvas.addEventListener('pointerdown', (ev) => {
-  dragging = hitTest(canvas, geo, ev.offsetX, ev.offsetY);
+  const o = canvasOffset(ev);
+  dragging = hitTest(canvas, geo, o.x, o.y);
   if (dragging) {
-    canvas.setPointerCapture(ev.pointerId);
+    try {
+      canvas.setPointerCapture(ev.pointerId);
+    } catch {
+      // synthetic driver events have no active pointer id — capture is a real-pointer convenience
+    }
     draw(dragging);
   }
 });
 canvas.addEventListener('pointermove', (ev) => {
   if (!dragging) return;
-  const m = Math.max(0.5, pxToMeters(ev.offsetX, canvas.clientWidth));
+  const o = canvasOffset(ev);
+  const m = Math.max(0.5, pxToMeters(o.x, canvas.clientWidth));
   if (dragging === 'tower') geo.towerMeters = clampTower(m);
   if (dragging === 'zone') geo.zoneMeters = clampZone(m);
   if (dragging === 'speaker') {

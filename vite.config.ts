@@ -66,8 +66,33 @@ function readApiKeyLegacy(): string {
 export default defineConfig({
   server: { port: 5199, strictPort: true }, // booked: keelsure keeps 5173 (port discipline across parallel sessions)
   preview: { port: 5199, strictPort: true },
-  plugins: [brainProxyPlugin(), samProxyPlugin()],
+  plugins: [brainProxyPlugin(), samProxyPlugin(), captureProxyPlugin()],
 });
+
+/** Capture-upload route (dev only): the take recorder page (public/capture.html) POSTs the
+ *  recorded tab here; written to /tmp — nothing persisted into the repo, no keys involved. */
+function captureProxyPlugin(): Plugin {
+  return {
+    name: 'antinoise-capture-proxy',
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use('/api/capture', async (req, res) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk as Buffer);
+        const body = Buffer.concat(chunks);
+        if (body.length === 0) {
+          res.statusCode = 400;
+          res.end('empty capture');
+          return;
+        }
+        const { mkdirSync, writeFileSync } = await import('node:fs');
+        mkdirSync('/tmp/antinoise-take', { recursive: true });
+        writeFileSync('/tmp/antinoise-take/take.mp4', body);
+        console.log(`[capture] saved ${Math.round(body.length / 1e6)} MB → /tmp/antinoise-take/take.mp4`);
+        res.end('saved');
+      });
+    },
+  };
+}
 
 /** SAM 3.1 proxy — same key discipline as the brain route. */
 function samProxyPlugin(): Plugin {
