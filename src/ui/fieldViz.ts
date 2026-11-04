@@ -363,11 +363,15 @@ export function renderField(
   c2d.lineWidth = 1.5;
   c2d.strokeRect(speakerX, corridorY - unionHalf, w - speakerX, unionHalf * 2);
   const bandWm = quietBandMeters(geo, FREQ);
-  textSharp(`quiet band ≈ ${bandWm.toFixed(1)} m (${geo.speakers} node${geo.speakers > 1 ? 's' : ''} @ ${spacingOf(geo).toFixed(0)} m)`, speakerX + 8, corridorY - unionHalf - 6);
+  textSharp(
+    `quiet band ≈ ${bandWm.toFixed(1)} m (${geo.speakers} node${geo.speakers > 1 ? 's' : ''} @ ${spacingOf(geo).toFixed(0)} m)`,
+    speakerX + 8,
+    Math.max(corridorY - unionHalf - 28, 16), // clear of the marker labels below
+  );
   for (const off of nodeOffsets(geo)) {
     marker(speakerX, corridorY + off * yScale, 'Array', '#4fd1c5', opts.highlight === 'speaker', off >= 0);
   }
-  marker(zx, corridorY, 'Zone', '#e0705a', opts.highlight === 'zone', true);
+  marker(zx, corridorY, 'Quiet zone', '#e0705a', opts.highlight === 'zone', true);
 
   // fiber link (tower → controller at the array side): effectively instant
   c2d.strokeStyle = 'rgba(127,143,244,0.7)';
@@ -384,7 +388,7 @@ export function renderField(
   }
 
   // cross-section strip along the corridor: ambient wave, anti wave, their sum
-  c2d.fillText('cross-section at the corridor line:', 12, stripTop - 8);
+  textSharp('cross-section at the corridor line:', 12, stripTop - 8, '#f4f7fb', 'bold 11px sans-serif');
   const y0 = stripTop + stripH / 2;
   const plot = (getV: (x: number) => number, color: string, lw: number, phaseY = 0): void => {
     c2d.beginPath();
