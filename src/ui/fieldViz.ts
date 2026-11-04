@@ -106,14 +106,14 @@ const heatBuf: { cv: HTMLCanvasElement | null; ctx: CanvasRenderingContext2D | n
  * 'flat'    = same posterized bands, no outlines
  * legacy    = old alpha-fade field (kept for A/B; not linked from UI) */
 type HeatStyle = 'contour' | 'flat' | 'legacy';
-/** Heat style — default 'flat': sparse posterized pools, zero fades (user finding: continuous
- *  fades smear over the meadow backdrop and strain the eyes; contour outlines hatch near the road). */
+/** Heat style — default 'contour' (user pick): sparse posterized pools + the destructive-region
+ *  outline. 'flat' = pools only; 'legacy' = the old alpha fade (kept for on-camera A/B). */
 export function heatStyle(): HeatStyle {
   try {
     const s = new URLSearchParams(window.location.search).get('style');
-    return s === 'contour' || s === 'legacy' ? s : 'flat';
+    return s === 'flat' || s === 'legacy' ? s : 'contour';
   } catch {
-    return 'flat';
+    return 'contour';
   }
 }
 
@@ -215,6 +215,21 @@ export function renderField(
     c2d.drawImage(tex, sx, 0, tex.naturalWidth - sx, tex.naturalHeight, roadPx + 2, 0, w - roadPx - 2, stripTop);
   }
 
+  // map text must read over BOTH the dark UI and the light meadow — dark rim + near-white fill
+  const textSharp = (txt: string, x: number, y: number, fill = '#f4f7fb', font = '11px sans-serif'): void => {
+    c2d.save();
+    c2d.font = font;
+    c2d.lineWidth = 3;
+    c2d.strokeStyle = 'rgba(13,16,23,0.85)';
+    c2d.shadowColor = 'rgba(13,16,23,0.9)';
+    c2d.shadowBlur = 3;
+    c2d.strokeText(txt, x, y);
+    c2d.shadowBlur = 0;
+    c2d.fillStyle = fill;
+    c2d.fillText(txt, x, y);
+    c2d.restore();
+  };
+
   // photo-derived protected-area patches (before the heat so the data layer stays on top)
   if (opts.photoDerived) {
     for (const p of photoPatchPositions(opts.photoDerived, geo)) {
@@ -233,9 +248,7 @@ export function renderField(
       c2d.fillStyle = 'rgba(13,16,23,0.55)';
       c2d.fillRect(px - 1, py + 4, 2, 7);
     }
-    c2d.fillStyle = 'rgba(217,222,232,0.75)';
-    c2d.font = '10px sans-serif';
-    c2d.fillText('green pools + trees: protected areas derived from the analyzed photo (stylized)', roadPx + 10, 16);
+    textSharp('green pools + trees: protected areas derived from the analyzed photo (stylized)', roadPx + 10, 16);
   }
 
   // heat-map field at the chosen frequency — three styles: contour (flat bands + destructive-region
@@ -330,9 +343,7 @@ export function renderField(
     c2d.lineWidth = 2;
     c2d.stroke();
     c2d.lineWidth = 1;
-    c2d.font = 'bold 12px sans-serif';
-    c2d.fillStyle = '#d9dee8';
-    c2d.fillText(label, px + 13, py + (above ? -12 : 20));
+    textSharp(label, px + 13, py + (above ? -12 : 20), '#f4f7fb', 'bold 12px sans-serif');
   };
   const towerX = mx(geo.towerMeters, w);
   const speakerX = mx(geo.zoneMeters - geo.standoffMeters, w);
@@ -351,11 +362,8 @@ export function renderField(
   c2d.strokeStyle = 'rgba(79,209,197,0.7)';
   c2d.lineWidth = 1.5;
   c2d.strokeRect(speakerX, corridorY - unionHalf, w - speakerX, unionHalf * 2);
-  c2d.lineWidth = 1;
-  c2d.fillStyle = 'rgba(79,209,197,0.9)';
-  c2d.font = '11px sans-serif';
   const bandWm = quietBandMeters(geo, FREQ);
-  c2d.fillText(`quiet band ≈ ${bandWm.toFixed(1)} m (${geo.speakers} node${geo.speakers > 1 ? 's' : ''} @ ${spacingOf(geo).toFixed(0)} m)`, speakerX + 8, corridorY - unionHalf - 6);
+  textSharp(`quiet band ≈ ${bandWm.toFixed(1)} m (${geo.speakers} node${geo.speakers > 1 ? 's' : ''} @ ${spacingOf(geo).toFixed(0)} m)`, speakerX + 8, corridorY - unionHalf - 6);
   for (const off of nodeOffsets(geo)) {
     marker(speakerX, corridorY + off * yScale, 'Array', '#4fd1c5', opts.highlight === 'speaker', off >= 0);
   }

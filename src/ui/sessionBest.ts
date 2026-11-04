@@ -36,7 +36,7 @@ export function setupLabel(g: Geometry): string {
     `tower ${g.towerMeters.toFixed(0)} m`,
     `zone ${g.zoneMeters.toFixed(0)} m`,
     `array ${g.standoffMeters.toFixed(1)} m`,
-    `${g.speakers} nodes`,
+    `${g.speakers} node${g.speakers === 1 ? '' : 's'}`,
   ];
   if (g.spacingMeters !== undefined) parts.push(`spacing ${g.spacingMeters.toFixed(0)} m`);
   return parts.join(' · ');

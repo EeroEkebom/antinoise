@@ -72,6 +72,7 @@ describe('createSessionBest (per traffic source)', () => {
 
 describe('setupLabel', () => {
   test('compact setup text', () => {
-    expect(setupLabel(A)).toBe('tower 20 m · zone 30 m · array 5.0 m · 1 nodes');
+    expect(setupLabel(A)).toBe('tower 20 m · zone 30 m · array 5.0 m · 1 node');
+    expect(setupLabel({ ...A, speakers: 3 })).toBe('tower 20 m · zone 30 m · array 5.0 m · 3 nodes');
   });
 });

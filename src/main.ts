@@ -165,7 +165,7 @@ function rerun(): void {
   // traffic loudness at the zone vs the roadside: line-source gain 10/(10+d)
   const ambDb = 20 * Math.log10(10 / (10 + geo.zoneMeters));
   el('v-amb').textContent = `${ambDb.toFixed(1)} dB vs roadside`;
-  el('v-geo').textContent = `sensor from road ${geo.towerMeters.toFixed(0)} m · zone from road ${geo.zoneMeters.toFixed(0)} m · standoff ${geo.standoffMeters.toFixed(1)} m · ${geo.speakers} units @ ${geo.spacingMeters ?? 4} m`;
+  el('v-geo').textContent = `sensor from road ${geo.towerMeters.toFixed(0)} m · zone from road ${geo.zoneMeters.toFixed(0)} m · standoff ${geo.standoffMeters.toFixed(1)} m · ${geo.speakers} unit${geo.speakers === 1 ? '' : 's'} @ ${geo.spacingMeters ?? 4} m`;
   if (audio) void rebuildAudioLoops(result);
   draw();
 
@@ -427,7 +427,7 @@ for (const [label, lv] of [['Light', 0.6], ['Normal', 1], ['Heavy', 1.4]] as [st
 el('traffic-note').textContent = 'Source: the seeded synthetic traffic (the test bed — fully reproducible). Cancelled stream is at Normal level.';
 
 // speaker-count knob: wider honest quiet band (nodes spread along the corridor)
-for (const n of [1, 2, 3, 5]) {
+for (const n of [1, 2, 3, 4, 5]) {
   const b = document.createElement('button');
   b.textContent = `${n}`;
   if (n === geo.speakers) b.classList.add('active');
