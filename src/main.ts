@@ -654,6 +654,7 @@ el('goal-area').addEventListener('click', () => { agentGoal = 'area'; updateGoal
 function updateMemoryLine(): void {
   el('agent-memory-line').hidden = agentMemory.count() === 0;
   el('agent-memory-count').textContent = String(agentMemory.count());
+  el('agent-memory-unit').textContent = agentMemory.count() === 1 ? 'lesson' : 'lessons';
 }
 el('btn-memory-clear').addEventListener('click', () => {
   agentMemory.clear();
