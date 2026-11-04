@@ -23,7 +23,9 @@ was built during the building period (first commit is the scaffold below).
   fed to later turns as measured precedents (a memory protocol, not weight tuning). **SAM 3.1** (Meta Model
   API) proposes placement from a street photo.
 - **Audio + field UI** (`src/audio/`, `src/ui/`): audible A/B (traffic vs. quiet zone), interactive field map
-  with drag markers, per-frequency wave view with cross-section, live dB readouts.
+  with drag markers, per-frequency wave view with cross-section, live dB readouts. Sources: seeded synthetic
+  test bed, three real CC0 recordings, or **your site's own baseline recording** (upload) — the sim,
+  measurements and agent all run on whichever is active.
 
 ## Security posture
 
@@ -40,6 +42,25 @@ npm test          # vitest — 100 tests, all green at freeze
 npm run numbers   # headline physics numbers (reduction dB, fiber-lead advantage)
 npm run dev       # http://localhost:5199 (Safari-first)
 ```
+
+## Why this can beat what's on the road today (honestly)
+
+Today's published traffic-noise tooling is passive: **barriers** (typ. ~5–15 dB at mid/high frequencies,
+weakest at the low-freq rumble that travels over and around them) and **low-noise pavement** (a few dB,
+weathered away over time). Active-acoustics experiments exist but at bench scale. Antinoise's claimed
+edges, all visible in the sim rather than asserted:
+
+- **Targets the band passive measures miss:** the sub-500 Hz rumble where walls perform worst.
+- **Prediction instead of reaction:** the fiber lead means the field knows each wavefront's shape
+  *before it arrives* — barriers only attenuate after the fact; reactive (eardrum-style) ANC only
+  protects a point and loses at higher frequency.
+- **A *zone*, not a line or a dome:** cancellation is delivered over an area of the quiet corridor,
+  sized honestly against the wavelength cap.
+- **Commissioning without specialists:** a street photo proposes the geometry (SAM 3.1), the site's
+  own baseline recording is the source, and the agent tunes from measured receipts with a memory of
+  what worked — not from a noise report written by a consultant.
+- **Complement, not replacement:** sits alongside existing barriers/pavement; the A/B numbers show
+  the *additional* effect of the field on top of whatever the location already has.
 
 ## Honest limitations
 

@@ -309,11 +309,7 @@ const REAL_SOURCES: { file: string; label: string; note: string }[] = [
 ];
 const recordingCache = new Map<string, Float32Array>();
 
-async function loadRecording(file: string): Promise<Float32Array> {
-  const hit = recordingCache.get(file);
-  if (hit) return hit;
-  const res = await fetch(`/audio/${file}.wav`);
-  const ab = await res.arrayBuffer();
+async function decodeTo16kSignal(ab: ArrayBuffer): Promise<Float32Array> {
   const probe = new AudioContext();
   const decoded = await probe.decodeAudioData(ab);
   void probe.close();
@@ -323,7 +319,14 @@ async function loadRecording(file: string): Promise<Float32Array> {
   s.connect(off.destination);
   s.start();
   const rendered = await off.startRendering();
-  const sig = rendered.getChannelData(0).slice();
+  return rendered.getChannelData(0).slice();
+}
+
+async function loadRecording(file: string): Promise<Float32Array> {
+  const hit = recordingCache.get(file);
+  if (hit) return hit;
+  const res = await fetch(`/audio/${file}.wav`);
+  const sig = await decodeTo16kSignal(await res.arrayBuffer());
   recordingCache.set(file, sig);
   return sig;
 }
@@ -360,6 +363,43 @@ for (const rs of REAL_SOURCES) {
   });
   el('scenarios').appendChild(b);
 }
+
+// your site's baseline: upload the location's own recorded traffic — the whole pipeline
+// (field, agent, per-source session best) runs on it like any other source
+const uploadInput = document.createElement('input');
+uploadInput.type = 'file';
+uploadInput.accept = 'audio/*,wav,m4a,mp3';
+uploadInput.hidden = true;
+const btnUpload = document.createElement('button');
+btnUpload.id = 'btn-site-baseline';
+btnUpload.textContent = 'Your baseline…';
+btnUpload.title = "Upload a recording of this location's traffic — the quiet zone, measurements and the AI assistant all run on your own baseline";
+btnUpload.addEventListener('click', () => uploadInput.click());
+uploadInput.addEventListener('change', async () => {
+  const f = uploadInput.files?.[0];
+  if (!f) return;
+  btnUpload.disabled = true;
+  btnUpload.classList.remove('failed');
+  try {
+    const sig = await decodeTo16kSignal(await f.arrayBuffer());
+    const key = `site:${f.name}`;
+    recordingCache.set(key, sig); // same cache as the presets — re-selecting is instant
+    sourceSignal = sig;
+    sourceKey = key;
+    el('traffic-note').textContent = `Source: your site's baseline — ${f.name} (the location's own collected traffic).`;
+    for (const c of el('scenarios').children) c.classList.remove('active');
+    btnUpload.classList.add('active');
+    rerun();
+  } catch {
+    btnUpload.classList.add('failed');
+    el('traffic-note').textContent = `Could not decode ${f.name} — try a .wav, .m4a or .mp3 file.`;
+  } finally {
+    btnUpload.disabled = false;
+    uploadInput.value = ''; // re-selecting the same file fires change again
+  }
+});
+el('scenarios').appendChild(uploadInput);
+el('scenarios').appendChild(btnUpload);
 
 // traffic level knob (audible loudness; reduction is scale-invariant — linear feedforward physics)
 for (const [label, lv] of [['Light', 0.6], ['Normal', 1], ['Heavy', 1.4]] as [string, number][]) {
